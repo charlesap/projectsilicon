@@ -3,23 +3,18 @@ Linuz or Mac Compiler for Oberon
 
 Requires the obnc Oberon to C translater from http://miasap.se/obnc/
 
-Expects a 64-bit INTEGER and REAL, e.g. in /usr/local/include/obnc/OBNCConfig.h set the following:
-```
-#ifndef OBNC_CONFIG_C_INT_TYPE
-#define OBNC_CONFIG_C_INT_TYPE OBNC_CONFIG_LONG_LONG
-#endif
-
-#ifndef OBNC_CONFIG_C_REAL_TYPE
-#define OBNC_CONFIG_C_REAL_TYPE OBNC_CONFIG_LONG_DOUBLE
-#endif
-```
+Expects a 64-bit INTEGER and REAL
 
 #On an Apple Silicon Mac
 
+brew install bdw-gc
+ export CFLAGS="-L/opt/homebrew/Cellar/bdw-gc/8.2.4/include"
+ export LDFLAGS="-L/opt/homebrew/Cellar/bdw-gc/8.2.4/lib"
+ ./build --c-int-type=longlong --c-real-type=longdouble --prefix=/opt/homebrew
 
 #Using oac
 
-With obnc configured for 64-bit then:
+With obnc configured for 64-bit and LDFLAGS set then:
 
 `obnc oac.Mod`
 
