@@ -1,5 +1,5 @@
 MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
-  IMPORT SYSTEM, Texts, Oberon;
+  IMPORT SYSTEM, Out, Texts;
 
 (* Oberon Scanner does lexical analysis. Input is Oberon-Text, output is
   sequence of symbols, i.e identifiers, numbers, strings, and special symbols.
@@ -32,14 +32,14 @@ MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
 
   TYPE Ident* = ARRAY IdLen OF CHAR;
 
-  VAR ival*, slen*: LONGINT;  (*results of Get*)
+  VAR ival*, slen*: INTEGER;  (*results of Get*)
     rval*: REAL;
     id*: Ident;  (*for identifiers*)
     str*: ARRAY stringBufSize OF CHAR;
     errcnt*: INTEGER;
 
     ch: CHAR;  (*last character read*)
-    errpos: LONGINT;
+    errpos: INTEGER;
     R: Texts.Reader;
     W: Texts.Writer;
     k: INTEGER;
@@ -51,12 +51,12 @@ MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
   BEGIN ident := id
   END CopyId;
 
-  PROCEDURE Pos*(): LONGINT;
+  PROCEDURE Pos*(): INTEGER;
   BEGIN RETURN Texts.Pos(R) - 1
   END Pos;
 
   PROCEDURE Mark*(msg: ARRAY OF CHAR);
-    VAR p: LONGINT;
+    VAR p: INTEGER;
   BEGIN p := Pos();
     IF (p > errpos) & (errcnt < 25) THEN
       Texts.WriteLn(W); Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1); Texts.Write(W, " ");
@@ -112,7 +112,7 @@ MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
     Texts.Read(R, ch); slen := i  (*no 0X appended!*)
   END HexString;
 
-  PROCEDURE Ten(e: LONGINT): REAL;
+  PROCEDURE Ten(e: INTEGER): REAL;
     VAR x, t: REAL;
   BEGIN x := 1.0; t := 10.0;
     WHILE e > 0 DO
@@ -124,7 +124,7 @@ MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
 
   PROCEDURE Number(VAR sym: INTEGER);
     CONST max = 2147483647 (*2^31 - 1*);
-    VAR i, k, e, n, s, h: LONGINT; x: REAL;
+    VAR i, k, e, n, s, h: INTEGER; x: REAL;
       d: ARRAY 16 OF INTEGER;
       negE: BOOLEAN;
   BEGIN ival := 0; i := 0; n := 0; k := 0;
@@ -260,7 +260,7 @@ MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
     UNTIL sym # null
   END Get;
 
-  PROCEDURE Init*(T: Texts.Text; pos: LONGINT);
+  PROCEDURE Init*(T: Texts.Text; pos: INTEGER);
   BEGIN errpos := pos; errcnt := 0; Texts.OpenReader(R, T, pos); Texts.Read(R, ch)
   END Init;
 
