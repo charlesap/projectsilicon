@@ -1,9 +1,9 @@
-MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*)
-  IMPORT Texts, Oberon, ORS, ORB, ORG;
+MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit in Oberon-07*)
+  IMPORT Texts, Oberon, OAS, OAB, OAG;
   (*Author: Niklaus Wirth, 2014.
-    Parser of Oberon-RISC compiler. Uses Scanner ORS to obtain symbols (tokens),
-    ORB for definition of data structures and for handling import and export, and
-    ORG to produce binary code. ORP performs type checking and data allocation.
+    Parser of Oberon compiler. Uses Scanner OAS to obtain symbols (tokens),
+    OAB for definition of data structures and for handling import and export, and
+    OAG to produce binary code. OAP performs type checking and data allocation.
     Parser is target-independent, except for part of the handling of allocations.*)
 
   TYPE PtrBase = POINTER TO PtrBaseDesc;
@@ -998,4 +998,4 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Compiler  8.3.2020");
   Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   NEW(dummy); dummy.class := ORB.Var; dummy.type := ORB.intType;
   expression := expression0; Type := Type0; FormalType := FormalType0
-END ORP.
+END OAP.

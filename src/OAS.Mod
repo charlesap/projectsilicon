@@ -1,4 +1,4 @@
-MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
+MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
   IMPORT SYSTEM, Texts, Oberon;
 
 (* Oberon Scanner does lexical analysis. Input is Oberon-Text, output is
@@ -309,4 +309,4 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   KWX[7] := k; KWX[8] := k;
   EnterKW(procedure, "PROCEDURE");
   KWX[9] := k
-END ORS.
+END OAS.
