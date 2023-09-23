@@ -1,12 +1,12 @@
     MODULE oac;
-      IMPORT OXP;
+      IMPORT OAP;
 
       VAR 
-        f: OXP.FileName;
-        o: OXP.Options;
+        f: OAP.FileName;
+        o: OAP.Options;
 
     BEGIN
         o:="-rs";
         f:="M.Mod";
-	OXP.Compile(f,"-rs");
+	OAP.Compile(f,"-rs");
     END oac.
