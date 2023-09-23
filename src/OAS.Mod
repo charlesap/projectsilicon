@@ -46,7 +46,16 @@ MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
     KWX: ARRAY 10 OF INTEGER;
     keyTab: ARRAY NKW OF
         RECORD sym: INTEGER; id: ARRAY 12 OF CHAR END;
-  
+ 
+  PROCEDURE Emit(s: ARRAY OF CHAR);
+    VAR ss: ARRAY 128 OF CHAR;
+  BEGIN ss:=s; Out.String(ss);
+  END Emit;
+
+  PROCEDURE EmitLn;
+  BEGIN Out.Ln
+  END EmitLn;
+
   PROCEDURE CopyId*(VAR ident: Ident);
   BEGIN ident := id
   END CopyId;
@@ -55,14 +64,20 @@ MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
   BEGIN RETURN Texts.Pos(R) - 1
   END Pos;
 
+  PROCEDURE BumpErr*(l: INTEGER);
+  BEGIN
+    INC(errcnt); errpos := l
+  END BumpErr;
+
   PROCEDURE Mark*(msg: ARRAY OF CHAR);
-    VAR p: INTEGER;
+    VAR p: INTEGER; ss: ARRAY 128 OF CHAR;
   BEGIN p := Pos();
     IF (p > errpos) & (errcnt < 25) THEN
-      Texts.WriteLn(W); Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1); Texts.Write(W, " ");
-      Texts.WriteString(W, msg); Texts.Append(Oberon.Log, W.buf)
+      Emit(" pos ");
+      Out.Int(p, 1); Emit( " " );
+      ss:= msg; Emit( ss ); EmitLn
     END ;
-    INC(errcnt); errpos := p + 4
+    BumpErr( p + 4 )
   END Mark;
 
   PROCEDURE Identifier(VAR sym: INTEGER);

@@ -27,11 +27,11 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
       lev*: INTEGER;
       next*, dsc*: Object;
       type*: Type;
-      name*: ORS.Ident;
+      name*: OAS.Ident;
       val*: INTEGER
     END ;
 
-    ModDesc* = RECORD (ObjDesc) orgname*: ORS.Ident END ;
+    ModDesc* = RECORD (ObjDesc) orgname*: OAS.Ident END ;
 
     TypeDesc* = RECORD
       form*, ref*, mno*: INTEGER;  (*ref is only used for import/export*)
@@ -39,7 +39,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
       len*: INTEGER;  (*for arrays, len < 0 => open array; for records: adr of descriptor*)
       dsc*, typobj*: Object;
       base*: Type;  (*for arrays, records, pointers*)
-      size*: INTEGER;  (*in bytes; always multiple of 4, except for Byte, Bool and Char*)
+      size*: INTEGER  (*in bytes; always multiple of 4, except for Byte, Bool and Char*)
     END ;
 
   (* Object classes and the meaning of "val":
@@ -68,14 +68,14 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     nofmod, Ref: INTEGER;
     typtab: ARRAY maxTypTab OF Type;
 
-  PROCEDURE NewObj*(VAR obj: Object; id: ORS.Ident; class: INTEGER);  (*insert new Object with name id*)
+  PROCEDURE NewObj*(VAR obj: Object; id: OAS.Ident; class: INTEGER);  (*insert new Object with name id*)
     VAR new, x: Object;
   BEGIN x := topScope;
     WHILE (x.next # NIL) & (x.next.name # id) DO x := x.next END ;
     IF x.next = NIL THEN
       NEW(new); new.name := id; new.class := class; new.next := NIL; new.rdo := FALSE; new.dsc := NIL;
       x.next := new; obj := new
-    ELSE obj := x.next; ORS.Mark("mult def")
+    ELSE obj := x.next; OAS.Mark("mult def")
     END 
   END NewObj;
 
@@ -83,7 +83,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     VAR s, x: Object;
   BEGIN s := topScope;
     REPEAT x := s.next;
-      WHILE (x # NIL) & (x.name # ORS.id) DO x := x.next END ;
+      WHILE (x # NIL) & (x.name # OAS.id) DO x := x.next END ;
       s := s.dsc
     UNTIL (x # NIL) OR (s = NIL);
     RETURN x
@@ -95,7 +95,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     IF mod.rdo THEN
       IF mod.name[0] # 0X THEN
         obj := mod.dsc;
-        WHILE (obj # NIL) & (obj.name # ORS.id) DO obj := obj.next END
+        WHILE (obj # NIL) & (obj.name # OAS.id) DO obj := obj.next END
       ELSE obj := NIL
       END
     ELSE obj := NIL
@@ -106,7 +106,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
   PROCEDURE thisfield*(rec: Type): Object;
     VAR fld: Object;
   BEGIN fld := rec.dsc;
-    WHILE (fld # NIL) & (fld.name # ORS.id) DO fld := fld.next END ;
+    WHILE (fld # NIL) & (fld.name # OAS.id) DO fld := fld.next END ;
     RETURN fld
   END thisfield;
 
@@ -121,15 +121,15 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
 
   (*------------------------------- Import ---------------------------------*)
 
-  PROCEDURE MakeFileName*(VAR FName: ORS.Ident; name, ext: ARRAY OF CHAR);
+  PROCEDURE MakeFileName*(VAR FName: OAS.Ident; name, ext: ARRAY OF CHAR);
     VAR i, j: INTEGER;
   BEGIN i := 0; j := 0;  (*assume name suffix less than 4 characters*)
-    WHILE (i < ORS.IdLen-5) & (name[i] > 0X) DO FName[i] := name[i]; INC(i) END ;
+    WHILE (i < OAS.IdLen-5) & (name[i] > 0X) DO FName[i] := name[i]; INC(i) END ;
     REPEAT FName[i]:= ext[j]; INC(i); INC(j) UNTIL ext[j] = 0X;
     FName[i] := 0X
   END MakeFileName;
   
-  PROCEDURE ThisModule(name, orgname: ORS.Ident; decl: BOOLEAN; key: INTEGER): Object;
+  PROCEDURE ThisModule(name, orgname: OAS.Ident; decl: BOOLEAN; key: INTEGER): Object;
     VAR mod: Module; obj, obj1: Object;
   BEGIN obj1 := topScope; obj := obj1.next;  (*search for module*)
     WHILE (obj # NIL) & (obj(Module).orgname # orgname) DO obj1 := obj; obj := obj1.next END ;
@@ -143,18 +143,18 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
         IF decl THEN mod.type := noType ELSE mod.type := nilType END ;
         obj1.next := mod; obj := mod
       ELSIF decl THEN
-        IF obj.type.form = NoTyp THEN ORS.Mark("mult def") ELSE ORS.Mark("invalid import order") END
-      ELSE ORS.Mark("conflict with alias")
+        IF obj.type.form = NoTyp THEN OAS.Mark("mult def") ELSE OAS.Mark("invalid import order") END
+      ELSE OAS.Mark("conflict with alias")
       END
     ELSIF decl THEN (*module already present, explicit import by declaration*)
-      IF  obj.type.form = NoTyp THEN ORS.Mark("mult def") ELSE ORS.Mark("invalid import order") END
+      IF  obj.type.form = NoTyp THEN OAS.Mark("mult def") ELSE OAS.Mark("invalid import order") END
     END ;
     RETURN obj
   END ThisModule;
   
   PROCEDURE Read(VAR R: Files.Rider; VAR x: INTEGER);
     VAR b: BYTE;
-  BEGIN Files.ReadByte(R, b);
+  BEGIN Files.Read(R, b);
     IF b < 80H THEN x := b ELSE x := b - 100H END
   END Read;
   
@@ -163,7 +163,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
       ref, class, form, np, readonly: INTEGER;
       fld, par, obj, mod, last: Object;
       t: Type;
-      name, modname: ORS.Ident;
+      name, modname: OAS.Ident;
   BEGIN Read(R, ref);
     IF ref < 0 THEN T := typtab[-ref]  (*already read*)
     ELSE NEW(t); T := t; typtab[ref] := t; t.mno := thismod.lev;
@@ -211,11 +211,11 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     END
   END InType;
   
-  PROCEDURE Import*(VAR modid, modid1: ORS.Ident);
+  PROCEDURE Import*(VAR modid, modid1: OAS.Ident);
     VAR key: INTEGER; class, k: INTEGER;
       obj: Object;  t: Type;
       thismod: Object;
-      modname, fname: ORS.Ident;
+      modname, fname: OAS.Ident;
       F: Files.File; R: Files.Rider;
   BEGIN
     IF modid1 = "SYSTEM" THEN
@@ -226,7 +226,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
         Files.Set(R, F, 0); Files.ReadInt(R, key); Files.ReadInt(R, key); Files.ReadString(R, modname);
         thismod := ThisModule(modid, modid1, TRUE, key); thismod.rdo := TRUE;
         Read(R, class); (*version key*)
-        IF class # versionkey THEN ORS.Mark("wrong version") END ;
+        IF class # versionkey THEN OAS.Mark("wrong version") END ;
         Read(R, class);
         WHILE class # 0 DO
           NEW(obj); obj.class := class; Files.ReadString(R, obj.name);
@@ -242,7 +242,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
           END ;
           obj.next := thismod.dsc; thismod.dsc := obj; Read(R, class)
         END ;
-      ELSE ORS.Mark("import not available")
+      ELSE OAS.Mark("import not available")
       END
     END
   END Import;
@@ -250,7 +250,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
   (*-------------------------------- Export ---------------------------------*)
 
   PROCEDURE Write(VAR R: Files.Rider; x: INTEGER);
-  BEGIN Files.WriteByte(R, x)
+  BEGIN Files.Write(R, x)
   END Write;
 
   PROCEDURE OutType(VAR R: Files.Rider; t: Type);
@@ -304,17 +304,17 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
         mod := topScope.next;
         WHILE (mod # NIL) & (mod.lev # t.mno) DO mod := mod.next END ;
         IF mod # NIL THEN Files.WriteString(R, mod(Module).orgname); Files.WriteInt(R, mod.val); Files.WriteString(R, obj.name)
-        ELSE ORS.Mark("re-export not found"); Write(R, 0)
+        ELSE OAS.Mark("re-export not found"); Write(R, 0)
         END
       ELSE Write(R, 0)
       END
     END
   END OutType;
 
-  PROCEDURE Export*(VAR modid: ORS.Ident; VAR newSF: BOOLEAN; VAR key: INTEGER);
+  PROCEDURE Export*(VAR modid: OAS.Ident; VAR newSF: BOOLEAN; VAR key: INTEGER);
     VAR x, sum, oldkey: INTEGER;
       obj, obj0: Object;
-      filename: ORS.Ident;
+      filename: OAS.Ident;
       F, F1: Files.File; R, R1: Files.Rider;
   BEGIN Ref := Record + 1; MakeFileName(filename, modid, ".smb");
     F := Files.New(filename); Files.Set(R, F, 0);
@@ -354,7 +354,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     IF sum # oldkey THEN
       IF newSF OR (F1 = NIL) THEN
         key := sum; newSF := TRUE; Files.Set(R, F, 4); Files.WriteInt(R, sum); Files.Register(F)  (*insert checksum*)
-      ELSE ORS.Mark("new symbol file inhibited")
+      ELSE OAS.Mark("new symbol file inhibited")
       END
     ELSE newSF := FALSE; key := sum
     END
