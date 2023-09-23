@@ -17,16 +17,16 @@ Expects a 64-bit INTEGER and REAL, e.g. in /usr/local/include/obnc/OBNCConfig.h 
 #On an Apple Silicon Mac
 
 
-#Using osc
+#Using oac
 
 With obnc configured for 64-bit then:
 
-`obnc osc.Mod`
+`obnc oac.Mod`
 
-That should recursively build the osc compiler.
+That should recursively build the oac compiler.
 
 Invoke the built compiler like this:
 
-`./osc -v M.mod`
+`./oac -v M.mod`
 
 to build M.Mod for the Arm 64-bit architecture.
