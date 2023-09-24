@@ -1,6 +1,11 @@
 # Project Silicon
 Niklaus Wirth and Jürg Gutknecht's Project Oberon ported to 64-bit Arm executing native on hardware or virtualized.
 
+The `build.sh` script builds the Project Silicon Oberon Compiler from sources in the /src folder by:
+
+* using the obnc Oberon to C translater to create an intermiate Oberon compiler in the /obnc folder
+* using the interim compiler to create a penultimate native Oberon compiler in the /interim folder
+* using the penultimate native compiler to create the Silicon Oberon compiler in the /native folder
 
 # Licenses
 
