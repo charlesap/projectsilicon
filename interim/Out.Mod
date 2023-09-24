@@ -1,4 +1,17 @@
 MODULE Out;
+
+  PROCEDURE Ln*;
+  BEGIN
+  END Ln;
+
+  PROCEDURE String*(s: ARRAY OF CHAR);
+  BEGIN
+  END String;
+
+  PROCEDURE Int*(i,c: INTEGER);
+  BEGIN
+  END Int;
+
 BEGIN 
 END Out.
 
