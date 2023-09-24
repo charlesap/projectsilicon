@@ -52,6 +52,15 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
 
   (*instruction assemblers according to formats*)
 
+  PROCEDURE Emit(s: ARRAY OF CHAR);
+    VAR ss: ARRAY 128 OF CHAR;
+  BEGIN ss:=s; Out.String(ss);
+  END Emit;
+
+  PROCEDURE EmitLn;
+  BEGIN Out.Ln
+  END EmitLn;
+
   PROCEDURE Put0(op, a, b, c: INTEGER);
   BEGIN (*emit format-0 instruction*)
     code[pc] := ((a*10H + b) * 10H + op) * 10000H + c; INC(pc)
@@ -1050,6 +1059,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       name: OAS.Ident;
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
+    IF verbose THEN EmitLn; Emit("Writing object file"); EmitLn; END;
     IF version = 0 THEN Put1(Mov, 0, 0, 0); Put3(BR, 7, 0)  (*RISC-0*)
     ELSE Put2(Ldr, LNK, SP, 0); Put1(Add, SP, SP, 4); Put3(BR, 7, LNK)
     END ;
@@ -1070,6 +1080,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     F := Files.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteInt(R, key); Files.Write(R, version);
     Files.WriteInt(R, size);
     obj := OAB.topScope.next;
+    IF verbose THEN Emit("Writing imports"); EmitLn; END;
     WHILE (obj # NIL) & (obj.class = OAB.Mod) DO  (*imports*)
       IF obj.dsc # OAB.system THEN Files.WriteString(R, obj(OAB.Module).orgname); Files.WriteInt(R, obj.val) END ;
       obj := obj.next
@@ -1077,13 +1088,17 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     Files.Write(R, 0);
     Files.WriteInt(R, tdx*4);
     i := 0;
+    IF verbose THEN Emit("Writing type descriptors"); EmitLn; END;
     WHILE i < tdx DO Files.WriteInt(R, data[i]); INC(i) END ; (*type descriptors*)
     Files.WriteInt(R, varsize - tdx*4);  (*data*)
     Files.WriteInt(R, strx);
+    IF verbose THEN Emit("Writing strings"); EmitLn; END;
     FOR i := 0 TO strx-1 DO Files.Write(R, ORD(str[i])) END ;  (*strings*)
     Files.WriteInt(R, pc);  (*code len*)
+    IF verbose THEN Emit("Writing program code"); EmitLn; END;
     FOR i := 0 TO pc-1 DO Files.WriteInt(R, code[i]) END ;  (*program*)
     obj := OAB.topScope.next;
+    IF verbose THEN Emit("Writing command entries"); EmitLn; END;
     WHILE obj # NIL DO  (*commands*)
       IF (obj.exno # 0) & (obj.class = OAB.Const) & (obj.type.form = OAB.Proc) &
           (obj.type.nofpar = 0) & (obj.type.base = OAB.noType) THEN
@@ -1094,6 +1109,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     Files.Write(R, 0);
     Files.WriteInt(R, nofent); Files.WriteInt(R, entry);
     obj := OAB.topScope.next;
+    IF verbose THEN Emit("Writing module entries"); EmitLn; END;
     WHILE obj # NIL DO  (*entries*)
       IF obj.exno # 0 THEN
         IF (obj.class = OAB.Const) & (obj.type.form = OAB.Proc) OR (obj.class = OAB.Var) THEN
@@ -1113,8 +1129,10 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       obj := obj.next
     END ;
     Files.WriteInt(R, -1);
+    IF verbose THEN Emit("Writing heads of fixup lists"); EmitLn; END;
     Files.WriteInt(R, fixorgP); Files.WriteInt(R, fixorgD); Files.WriteInt(R, fixorgT); Files.WriteInt(R, entry);
-    Files.Write(R, ORD("O")); Files.Register(F)
+    Files.Write(R, ORD("O")); Files.Register(F);
+    IF verbose THEN Emit("Closing object file"); EmitLn; END
   END Close;
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;

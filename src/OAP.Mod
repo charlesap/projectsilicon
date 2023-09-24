@@ -1,5 +1,5 @@
 MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit in Oberon-07*)
-  IMPORT Out, Texts, OAS, OAB, OAG;
+  IMPORT Out, Texts, OAL, OAS, OAB, OAG;
   (*Author: Niklaus Wirth, 2014.
     Parser of Oberon compiler. Uses Scanner OAS to obtain symbols (tokens),
     OAB for definition of data structures and for handling import and export, and
@@ -1003,25 +1003,22 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       oo: Options;
   BEGIN
     Emit("Compiling "); Emit( f ); EmitLn;
-        ff:= f; oo:=o;
-        NEW(T);
-        Texts.Open(T, ff);
-        IF T.len > 0 THEN
-          Option(oo);  
-          OAS.Init(T, 0);
-          Module;
-          IF ccFMT > 0 THEN
-            Emit("Linking "); Emit( f ); EmitLn;
-            Link;  
-	  END ;
-        ELSE Emit( f ); Emit(" not found"); EmitLn
-        END ;
-        IF (T.len # 0) & (OAS.errcnt = 0) THEN Texts.Scan(S) ELSE S.class := 0 END
-      
-     
+    ff:= f; oo:=o;
+    NEW(T);
+    Texts.Open(T, ff);
+    IF T.len > 0 THEN
+      Option(oo);  
+      OAS.Init(T, 0);
+      Module;
+      IF ccFMT > 0 THEN
+        Emit("Linking "); Emit( f ); EmitLn;
+        Link;  
+      END ;
+    ELSE Emit( f ); Emit(" not found"); EmitLn
+    END ;
   END Compile;
 
-BEGIN Emit("Oberon Compiler for 64-bit ARM 2023.9.24");
+BEGIN Emit("Silicon Oberon Compiler 2023.09.24");
   EmitLn;
   NEW(dummy); dummy.class := OAB.Var; dummy.type := OAB.intType;
   expression := expression0; Type := Type0; FormalType := FormalType0
