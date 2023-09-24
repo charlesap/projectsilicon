@@ -1,10 +1,16 @@
 #!/bin/bash
 pushd . 2>&1 >> /dev/null
 cd obnc
+echo
+echo
+echo "in obnc"
 obnc oac.Mod
 popd 2>&1 >> /dev/null
 pushd . 2>&1 >> /dev/null
 cd interim
+echo
+echo
+echo "in interim"
 ../obnc/oac -s Out.Mod
 ../obnc/oac -s Files.Mod
 ../obnc/oac -s Texts.Mod
@@ -18,6 +24,9 @@ cd interim
 popd 2>&1 >> /dev/null
 pushd . 2>&1 >> /dev/null
 cd native
+echo
+echo
+echo "in native"
 ../interim/oac -s Out.Mod
 ../interim/oac -s Files.Mod
 ../interim/oac -s Texts.Mod

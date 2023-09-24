@@ -394,6 +394,6 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
 
 
 BEGIN 
-  Emit("Silicon Oberon Linker   2023.09.24"); EmitLn
+(*  Emit("Silicon Oberon Linker   2023.09.24"); EmitLn *)
 END OAL.
 
