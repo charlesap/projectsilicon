@@ -154,3 +154,4 @@ MODULE Draw; (*NW 29.6.88 / 12.11.94 / 18.11.2013*)
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Draw - NW 9.8.2013");
   Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
 END Draw.
+

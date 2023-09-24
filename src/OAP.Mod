@@ -969,7 +969,8 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
   PROCEDURE Link;
     VAR key: INTEGER;
   BEGIN 
-    IF verbose THEN Emit(" linking") END;
+    IF verbose THEN Emit(" linking "); Emit(modid); EmitLn; END;
+    OAL.Link(modid,ccFMT)
   END Link;
 
 
@@ -1023,3 +1024,4 @@ BEGIN Emit("Silicon Oberon Compiler 2023.09.24");
   NEW(dummy); dummy.class := OAB.Var; dummy.type := OAB.intType;
   expression := expression0; Type := Type0; FormalType := FormalType0
 END OAP.
+

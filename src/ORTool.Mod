@@ -249,3 +249,4 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "ORTool 18.2.2013");
   mnemo1[14] := "GT ";
   mnemo1[15] := "NO ";
 END ORTool.
+

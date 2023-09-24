@@ -854,3 +854,4 @@ BEGIN NEW(TBuf); NEW(DelBuf);
   ScrollMarker.Fade := FlipSM; ScrollMarker.Draw := FlipSM;
   Texts.OpenWriter(W); Texts.OpenWriter(KW)
 END TextFrames.
+

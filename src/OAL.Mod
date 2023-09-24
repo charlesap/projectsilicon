@@ -1,5 +1,5 @@
 MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2021*)
-  IMPORT SYSTEM, Out, Files, Texts;
+  IMPORT SYSTEM, Out, Files, OAS;
   (* IMPORT SYSTEM, Files, Modules, Kernel, Texts, Oberon; *)
 
   CONST
@@ -26,12 +26,21 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
 (*
     binroot, M: Modules.Module;
 *)
- 
+   modid: OAS.Ident; 
    binMTOrg, binStart, binAllocPtr, res*: INTEGER;
     importing*, imported*: ModuleName;
     limit: INTEGER;
-    W: Texts.Writer;
+ (*   W: Texts.Writer; *)
     Mlist: ARRAY 16 OF ModuleName;
+
+  PROCEDURE Emit(s: ARRAY OF CHAR);
+    VAR ss: ARRAY 128 OF CHAR;
+  BEGIN ss:=s; Out.String(ss);
+  END Emit;
+
+  PROCEDURE EmitLn;
+  BEGIN Out.Ln
+  END EmitLn;
 
   PROCEDURE ThisFile(name: ARRAY OF CHAR): Files.File;
     VAR i: INTEGER;
@@ -79,14 +88,16 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
    VAR  t : INTEGER;
   BEGIN
     SYSTEM.GET( binStart + 0100H + 12 , t );
-    IF t = 0 THEN Texts.WriteString(W, " OK ");
-      Texts.WriteInt(W, i,4 );
-    ELSE Texts.WriteString(W, " BAD "); 
+    IF t = 0 THEN Emit( " OK ");
+(*      Texts.WriteInt(W, i,4 ); *)
+    ELSE Emit(" BAD "); 
+(*
       Texts.WriteInt(W, i,4 );
       Texts.WriteString(W, " ");
       Texts.WriteHex(W, t ) 
+*)
     END;
-    Texts.WriteLn(W);  
+    EmitLn;  
   END ck;
 
 
@@ -312,7 +323,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
 *)
   END Strip;
 
-  PROCEDURE Link*;
+  PROCEDURE Link*(name: ARRAY OF CHAR; format: INTEGER);
 (*
     VAR
       T: Texts.Text;
@@ -383,6 +394,6 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
 
 
 BEGIN 
-  Texts.OpenWriter(W); Texts.WriteString(W, "Linker 2.8.2021");
-  Texts.WriteLn(W) (* Texts.Append(Oberon.Log, W.buf); *)
+  Emit("Silicon Oberon Linker   2023.09.24"); EmitLn
 END OAL.
+

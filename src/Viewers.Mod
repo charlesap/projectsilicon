@@ -204,3 +204,4 @@ BEGIN backup := NIL; curW := 0; minH := 1; DH := Display.Height;
   FillerTrack.X := 0; FillerTrack.W := inf; FillerTrack.Y := 0; FillerTrack.H := DH;
   FillerTrack.dsc := FillerViewer; FillerTrack.next := FillerTrack
 END Viewers.
+

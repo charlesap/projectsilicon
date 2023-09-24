@@ -535,3 +535,4 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
 
 BEGIN TrailerFile := Files.New("")
 END Texts.
+

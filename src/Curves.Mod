@@ -236,3 +236,4 @@ BEGIN NEW(method); method.module := "Curves"; method.allocator := "New";
   method.selectable := Selectable; method.change := Change;
   method.read := Read; method.write := Write
 END Curves.
+

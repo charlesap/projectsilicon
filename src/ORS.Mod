@@ -310,3 +310,4 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   EnterKW(procedure, "PROCEDURE");
   KWX[9] := k
 END ORS.
+

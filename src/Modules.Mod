@@ -223,3 +223,4 @@ MODULE Modules;  (*Link and load on RISC; NW 20.10.2013 / 8.1.2019*)
 BEGIN Init; Load("Oberon", M);
     LED(res); REPEAT UNTIL FALSE  (*only if load fails*)
 END Modules.
+

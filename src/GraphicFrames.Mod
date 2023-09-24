@@ -527,3 +527,4 @@ BEGIN DW := Display.Width - 8; DH := Display.Height - 8; CL := 0;
   Crosshair.Fade := FlipCross; Crosshair.Draw := FlipCross;
   Graphics.InstallDrawMethods(DrawLine, DrawCaption, DrawMacro)
 END GraphicFrames.
+
