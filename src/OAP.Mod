@@ -935,15 +935,15 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       ELSE OAS.Mark("identifier expected")
       END ;
       Check(OAS.semicolon, "no ;"); level := 0; exno := 1; key := 0;
-      IF sym = OAS.import THEN
+      IF sym = OAS.import THEN                                                       (* IMPORTS *)
         OAS.Get(sym); Import;
         WHILE sym = OAS.comma DO OAS.Get(sym); Import END ;
         Check(OAS.semicolon, "; missing")
       END ;
-      OAG.Open(version); Declarations(dc); OAG.SetDataSize((dc + 3) DIV 4 * 4);
-      WHILE sym = OAS.procedure DO ProcedureDecl; Check(OAS.semicolon, "no ;") END ;
-      OAG.Header;
-      IF sym = OAS.begin THEN OAS.Get(sym); StatSequence END ;
+      OAG.Open(version, verbose); Declarations(dc); OAG.SetDataSize((dc + 3) DIV 4 * 4);      (* TYPES and VARS *)
+      WHILE sym = OAS.procedure DO ProcedureDecl; Check(OAS.semicolon, "no ;") END ; (* PROCEDURES *)
+      OAG.Header;                                                                    
+      IF sym = OAS.begin THEN OAS.Get(sym); StatSequence END ;                       (* BEGIN *)
       Check(OAS.end, "no END");
       IF sym = OAS.ident THEN
         IF OAS.id # modid THEN OAS.Mark("no match") END ;
@@ -956,7 +956,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
         IF newSF THEN Emit(" new symbol file") END
       END ;
       IF OAS.errcnt = 0 THEN
-        OAG.Close(modid, key, exno);
+        OAG.Close(modid, key, exno);                                                 (* write the binary *)
 (*        Texts.WriteInt(W, OAG.pc, 6); Texts.WriteInt(W, dc, 6); Texts.WriteHex(W, key) *)
       ELSE EmitLn; Emit("compilation FAILED")
       END ;
