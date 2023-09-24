@@ -17,6 +17,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     dc: INTEGER;    (*data counter*)
     level, exno, version: INTEGER;
     newSF: BOOLEAN;  (*option flag*)
+    verbose: BOOLEAN;  (*option flag*)
     ccFMT, ccWordsize, ccStackalign: INTEGER;
     expression: PROCEDURE (VAR x: OAG.Item);  (*to avoid forward reference*)
     Type: PROCEDURE (VAR type: OAB.Type);
@@ -976,17 +977,19 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     VAR i: INTEGER;
   BEGIN
     newSF := FALSE;
+    verbose := FALSE;
     ccFMT := 0; (* no linking *)
     ccWordsize := 4;
     ccStackalign := 4;
 
     i:=0; WHILE o[i] > 0X DO 
       IF o[i] = "s" THEN newSF := TRUE END;
+      IF o[i] = "v" THEN verbose := TRUE END;
       IF o[i] = "b" THEN ccFMT := 1 END;  (* raw binary *)
       IF o[i] = "r" THEN ccFMT := 2 END;  (* rsc64  *)
       IF o[i] = "e" THEN ccFMT := 3 END;  (* elf64  *)
       IF o[i] = "m" THEN ccFMT := 4 END;  (* macho  *)
-      IF o[i] = "P" THEN ccFMT := 5 END;  (* pe64   *)
+      IF o[i] = "p" THEN ccFMT := 5 END;  (* pe64   *)
       INC(i)
     END
   END Option;
@@ -1008,7 +1011,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
           OAS.Init(T, 0);
           Module;
           IF ccFMT > 0 THEN
-            Link;
+            Link;  
 	  END ;
         ELSE Texts.WriteString(W, S.s); Texts.WriteString(W, " not found");
           Texts.WriteLn(W); (*Texts.Append(Oberon.Log, W.buf)*)
@@ -1018,8 +1021,8 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
      
   END Compile;
 
-BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Compiler  8.3.2020");
-  Texts.WriteLn(W); (*Texts.Append(Oberon.Log, W.buf);*)
+BEGIN Emit("Oberon Compiler for 64-bit ARM 2023.9.24");
+  Out.Ln;
   NEW(dummy); dummy.class := OAB.Var; dummy.type := OAB.intType;
   expression := expression0; Type := Type0; FormalType := FormalType0
 END OAP.
