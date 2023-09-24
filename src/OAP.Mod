@@ -25,7 +25,6 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     modid: OAS.Ident;
     pbsList: PtrBase;   (*list of names of pointer base types*)
     dummy: OAB.Object;
-    W: Texts.Writer;
 
   PROCEDURE Emit(s: ARRAY OF CHAR);
     VAR ss: ARRAY 128 OF CHAR; 
@@ -925,14 +924,14 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
 
   PROCEDURE Module;
     VAR key: INTEGER;
-  BEGIN Texts.WriteString(W, "  compiling "); OAS.Get(sym);
+  BEGIN Emit("  compiling "); OAS.Get(sym);
     IF sym = OAS.module THEN
       OAS.Get(sym);
-      IF sym = OAS.times THEN version := 0; dc := 8; Texts.Write(W, "*"); OAS.Get(sym) ELSE dc := 0; version := 1 END ;
+      IF sym = OAS.times THEN version := 0; dc := 8; Emit("*"); OAS.Get(sym) ELSE dc := 0; version := 1 END ;
       OAB.Init; OAB.OpenScope;
       IF sym = OAS.ident THEN
         OAS.CopyId(modid); OAS.Get(sym);
-        Texts.WriteString(W, modid); (* Texts.Append(Oberon.Log, W.buf) *)
+        Emit(modid); 
       ELSE OAS.Mark("identifier expected")
       END ;
       Check(OAS.semicolon, "no ;"); level := 0; exno := 1; key := 0;
@@ -954,14 +953,14 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       IF sym # OAS.period THEN OAS.Mark("period missing") END ;
       IF (OAS.errcnt = 0) & (version # 0) THEN
         OAB.Export(modid, newSF, key);
-        IF newSF THEN Texts.WriteString(W, " new symbol file") END
+        IF newSF THEN Emit(" new symbol file") END
       END ;
       IF OAS.errcnt = 0 THEN
         OAG.Close(modid, key, exno);
-        Texts.WriteInt(W, OAG.pc, 6); Texts.WriteInt(W, dc, 6); Texts.WriteHex(W, key)
-      ELSE Texts.WriteLn(W); Texts.WriteString(W, "compilation FAILED")
+(*        Texts.WriteInt(W, OAG.pc, 6); Texts.WriteInt(W, dc, 6); Texts.WriteHex(W, key) *)
+      ELSE EmitLn; Emit("compilation FAILED")
       END ;
-      Texts.WriteLn(W); (* Texts.Append(Oberon.Log, W.buf); *)
+      EmitLn;
       OAB.CloseScope; pbsList := NIL
     ELSE OAS.Mark("must start with MODULE")
     END
@@ -969,7 +968,8 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
 
   PROCEDURE Link;
     VAR key: INTEGER;
-  BEGIN Texts.WriteString(W, "  linking ")
+  BEGIN 
+    IF verbose THEN Emit(" linking") END;
   END Link;
 
 
@@ -1002,7 +1002,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       ff: Texts.Filename;
       oo: Options;
   BEGIN
-    Emit("Compiling "); Emit( f ); Out.Ln;
+    Emit("Compiling "); Emit( f ); EmitLn;
         ff:= f; oo:=o;
         NEW(T);
         Texts.Open(T, ff);
@@ -1011,10 +1011,10 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
           OAS.Init(T, 0);
           Module;
           IF ccFMT > 0 THEN
+            Emit("Linking "); Emit( f ); EmitLn;
             Link;  
 	  END ;
-        ELSE Texts.WriteString(W, S.s); Texts.WriteString(W, " not found");
-          Texts.WriteLn(W); (*Texts.Append(Oberon.Log, W.buf)*)
+        ELSE Emit( f ); Emit(" not found"); EmitLn
         END ;
         IF (T.len # 0) & (OAS.errcnt = 0) THEN Texts.Scan(S) ELSE S.class := 0 END
       
@@ -1022,7 +1022,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
   END Compile;
 
 BEGIN Emit("Oberon Compiler for 64-bit ARM 2023.9.24");
-  Out.Ln;
+  EmitLn;
   NEW(dummy); dummy.class := OAB.Var; dummy.type := OAB.intType;
   expression := expression0; Type := Type0; FormalType := FormalType0
 END OAP.
