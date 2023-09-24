@@ -1065,7 +1065,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     END ;
     size := varsize + strx + comsize + (pc + nofimps + nofent + nofptrs + 1)*4;  (*varsize includes type descriptors*)
     
-    OAB.MakeFileName(name, modid, ".rsc"); (*write code file*)
+    OAB.MakeFileName(name, modid, ".a64"); (*write code file*)
     F := Files.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteInt(R, key); Files.Write(R, version);
     Files.WriteInt(R, size);
     obj := OAB.topScope.next;
