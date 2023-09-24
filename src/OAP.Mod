@@ -17,7 +17,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     dc: INTEGER;    (*data counter*)
     level, exno, version: INTEGER;
     newSF: BOOLEAN;  (*option flag*)
-    ccARCH, ccFMT, ccWordsize, ccStackalign: INTEGER;
+    ccFMT, ccWordsize, ccStackalign: INTEGER;
     expression: PROCEDURE (VAR x: OAG.Item);  (*to avoid forward reference*)
     Type: PROCEDURE (VAR type: OAB.Type);
     FormalType: PROCEDURE (VAR typ: OAB.Type; dim: INTEGER);
@@ -966,50 +966,29 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     END
   END Module;
 
-(*  PROCEDURE Option(VAR S: Texts.Scanner);
-  BEGIN newSF := FALSE;
-    IF S.nextCh = "/" THEN
-      Texts.Scan(S); Texts.Scan(S); 
-      IF (S.class = Texts.Name) & (S.s[0] = "s") THEN newSF := TRUE END
-    END
-  END Option;
-*)
+  PROCEDURE Link;
+    VAR key: INTEGER;
+  BEGIN Texts.WriteString(W, "  linking ")
+  END Link;
 
 
   PROCEDURE Option(o: Options);
     VAR i: INTEGER;
-  BEGIN newSF := FALSE;
-    ccARCH := 2;
-    ccFMT := 2;
+  BEGIN
+    newSF := FALSE;
+    ccFMT := 0; (* no linking *)
     ccWordsize := 4;
     ccStackalign := 4;
-(*
+
     i:=0; WHILE o[i] > 0X DO 
       IF o[i] = "s" THEN newSF := TRUE END;
-      IF o[i] = "r" THEN ccARCH := OXS.RISC5 END;
-      IF o[i] = "R" THEN ccARCH := OXS.ERISC5; ccFMT := OXS.rsc64 END;
-      IF o[i] = "I" THEN ccARCH := OXS.X8664; ccWordsize := 8; ccStackalign := 8;  ccFMT := OXS.rsc64 END;
-      IF o[i] = "A" THEN ccARCH := OXS.ARM64; ccWordsize := 8; ccStackalign := 16; ccFMT := OXS.rsc64 END;
-      IF o[i] = "a" THEN ccARCH := OXS.ARM32 END;
-      IF o[i] = "C" THEN ccARCH := OXS.CORTEX4 END;
-      IF o[i] = "c" THEN ccARCH := OXS.CORTEX0 END;
-      IF o[i] = "V" THEN ccARCH := OXS.RISCV64; ccWordsize := 8; ccStackalign := 8; ccFMT := OXS.rsc64  END;
-      IF o[i] = "v" THEN ccARCH := OXS.RISCV32 END;
-      IF o[i] = "W" THEN ccARCH := OXS.WASM; ccWordsize := 8; ccStackalign := 8; END;
-
-
-      IF o[i] = "z" THEN ccFMT := OXS.raw END;
-      IF o[i] = "o" THEN ccFMT := OXS.rsc32 END;
-      IF o[i] = "O" THEN ccFMT := OXS.rsc64 END;
-      IF o[i] = "e" THEN ccFMT := OXS.elf32 END;
-      IF o[i] = "E" THEN ccFMT := OXS.elf64 END;
-      IF o[i] = "m" THEN ccFMT := OXS.macho END;
-      IF o[i] = "p" THEN ccFMT := OXS.pe32 END;
-      IF o[i] = "P" THEN ccFMT := OXS.pe64 END;
-
+      IF o[i] = "b" THEN ccFMT := 1 END;  (* raw binary *)
+      IF o[i] = "r" THEN ccFMT := 2 END;  (* rsc64  *)
+      IF o[i] = "e" THEN ccFMT := 3 END;  (* elf64  *)
+      IF o[i] = "m" THEN ccFMT := 4 END;  (* macho  *)
+      IF o[i] = "P" THEN ccFMT := 5 END;  (* pe64   *)
       INC(i)
     END
-*)
   END Option;
 
 
@@ -1026,7 +1005,11 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
         Texts.Open(T, ff);
         IF T.len > 0 THEN
           Option(oo);  
-          OAS.Init(T, 0); Module
+          OAS.Init(T, 0);
+          Module;
+          IF ccFMT > 0 THEN
+            Link;
+	  END ;
         ELSE Texts.WriteString(W, S.s); Texts.WriteString(W, " not found");
           Texts.WriteLn(W); (*Texts.Append(Oberon.Log, W.buf)*)
         END ;
