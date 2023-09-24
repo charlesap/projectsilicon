@@ -1,28 +1,33 @@
 #!/bin/bash
-pushd .; cd obnc
+pushd . 2>&1 >> /dev/null
+cd obnc
 obnc oac.Mod
-popd; pushd .; cd interim
-../obnc/oac -mvs Out.Mod
-../obnc/oac -mvs Files.Mod
-../obnc/oac -mvs Texts.Mod
-../obnc/oac -mvs Fonts.Mod
-../obnc/oac -mvs OAS.Mod
-../obnc/oac -mvs OAB.Mod
-../obnc/oac -mvs OAG.Mod
-../obnc/oac -mvs OAL.Mod
-../obnc/oac -mvs OAP.Mod
-../obnc/oac -mvs oac.Mod
-popd; pushd .; cd native
-../interim/oac -mvs Out.Mod
-../interim/oac -mvs Files.Mod
-../interim/oac -mvs Texts.Mod
-../interim/oac -mvs Fonts.Mod
-../interim/oac -mvs OAS.Mod
-../interim/oac -mvs OAB.Mod
-../interim/oac -mvs OAG.Mod
-../interim/oac -mvs OAL.Mod
-../interim/oac -mvs OAP.Mod
-../interim/oac -mvs oac.Mod
-popd
+popd 2>&1 >> /dev/null
+pushd . 2>&1 >> /dev/null
+cd interim
+../obnc/oac -s Out.Mod
+../obnc/oac -s Files.Mod
+../obnc/oac -s Texts.Mod
+../obnc/oac -s Fonts.Mod
+../obnc/oac -s OAS.Mod
+../obnc/oac -s OAB.Mod
+../obnc/oac -s OAG.Mod
+../obnc/oac -s OAL.Mod
+../obnc/oac -s OAP.Mod
+../obnc/oac -ms oac.Mod
+popd 2>&1 >> /dev/null
+pushd . 2>&1 >> /dev/null
+cd native
+../interim/oac -s Out.Mod
+../interim/oac -s Files.Mod
+../interim/oac -s Texts.Mod
+../interim/oac -s Fonts.Mod
+../interim/oac -s OAS.Mod
+../interim/oac -s OAB.Mod
+../interim/oac -s OAG.Mod
+../interim/oac -s OAL.Mod
+../interim/oac -s OAP.Mod
+../interim/oac -ms oac.Mod
+popd 2>&1 >> /dev/null
 
 
