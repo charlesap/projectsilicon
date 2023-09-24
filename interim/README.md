@@ -1,27 +1,8 @@
-# using obnc to create oac from source files
-Linux or Mac Compiler for Oberon
-
-Requires the obnc Oberon to C translater from http://miasap.se/obnc/
-
-Expects a 64-bit INTEGER and REAL
-
-#On an Apple Silicon Mac
-
-brew install bdw-gc
- export CFLAGS="-L/opt/homebrew/Cellar/bdw-gc/8.2.4/include"
- export LDFLAGS="-L/opt/homebrew/Cellar/bdw-gc/8.2.4/lib"
- ./build --c-int-type=longlong --c-real-type=longdouble --prefix=/opt/homebrew
-
-#Using oac
-
-With obnc configured for 64-bit and LDFLAGS set then:
-
-`obnc oac.Mod`
-
-That should recursively build the oac compiler.
+# using the interim compiler to create the penultimate native oac compiler from source files
 
 Invoke the built compiler like this:
 
-`./oac -v M.mod`
+`../obnc/oac -sv <module>.Mod` to create object files for each required module and then
 
-to build M.Mod for the Arm 64-bit architecture.
+`../obnc/oac -sov oac.Mod` to create the mach-o penultimate native compiler using the intermediate compiler.
+

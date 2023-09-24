@@ -1,5 +1,5 @@
-# Bld
-Linuz or Mac Compiler for Oberon
+# using obnc to create oac from source files
+Linux or Mac Compiler for Oberon
 
 Requires the obnc Oberon to C translater from http://miasap.se/obnc/
 
@@ -18,10 +18,5 @@ With obnc configured for 64-bit and LDFLAGS set then:
 
 `obnc oac.Mod`
 
-That should recursively build the oac compiler.
+That should recursively build the oac interim compiler used in the next stage.
 
-Invoke the built compiler like this:
-
-`./oac -v M.mod`
-
-to build M.Mod for the Arm 64-bit architecture.
