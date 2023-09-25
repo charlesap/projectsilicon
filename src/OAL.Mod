@@ -3,31 +3,32 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   (* IMPORT SYSTEM, Files, Modules, Kernel, Texts, Oberon; *)
 
   CONST
-(* 
+ 
      versionkey = 1X; MT = 12; DescSize = 80;
-     BADARCH = 0;
-     RISC5   = 6517618;    (* "rsc" 0x00637372 *)
-     ERISC5  = 7878770;    (* "r8x" 0x00783872 *)
-     X8664   = 7878761;    (* "i8x" 0x00783869 *)
-     CORTEX4 = 7877731;    (* "c4x" 0x00783463 *)
-     CORTEX0 = 7876707;    (* "c0x" 0x00783063 *)
-     ARM64   = 7878753;    (* "a8x" 0x00783861 *)
-     ARM32   = 7877729;    (* "a4x" 0x00783461 *)
-     RISCV64 = 7878774;    (* "v8x" 0x00783876 *)
-     RISCV32 = 7877750;    (* "v4x" 0x00783476 *)
-     WASM    = 7877751;    (* "w4x" 0x00783477 *)
-*)
-
 
   TYPE
-    ModuleName* = ARRAY 32 OF CHAR;
+    Module = POINTER TO ModDesc;
+    Command = PROCEDURE;
+    ModuleName = ARRAY 32 OF CHAR; (* ModuleName and ModDesc must match Modules.Mod *)
+
+    ModDesc = RECORD
+        name: ModuleName;
+        next: Module;
+        key, num, size, refcnt: INTEGER;
+        data, code, imp, cmd, ent, ptr, unused: INTEGER  (*addresses*)
+      END ;
+
+    RawBin = POINTER TO RawBinDesc;
+    RawBinDesc = RECORD
+        bytes: ARRAY 1024*1024*16 OF BYTE
+      END ;
 
   VAR 
-(*
-    binroot, M: Modules.Module;
-*)
-   modid: OAS.Ident; 
-   binMTOrg, binStart, binAllocPtr, res*: INTEGER;
+
+    binroot, M: Module;
+
+    modid: OAS.Ident; 
+    binMTOrg, binStart, binAllocPtr, res*: INTEGER;
     importing*, imported*: ModuleName;
     limit: INTEGER;
  (*   W: Texts.Writer; *)
@@ -48,7 +49,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   BEGIN
     i := 0;
     WHILE name[i] # 0X DO filename[i] := name[i]; INC(i,1) END ;
-    filename[i] := "."; filename[i+1] := "r"; filename[i+2] := "s"; filename[i+3] := "c"; filename[i+4] := 0X;
+    filename[i] := "."; filename[i+1] := "a"; filename[i+2] := "6"; filename[i+3] := "4"; filename[i+4] := 0X;
     RETURN Files.Old(filename)
   END ThisFile;
 
@@ -70,7 +71,19 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   END ThisBinFile;
 
   PROCEDURE error(n: INTEGER; name: ModuleName);
-  BEGIN res := n; importing := name
+  BEGIN 
+    res := n; importing := name; Emit("!"); 
+    IF res < 0 THEN Emit("x") END ;
+    IF res = 0 THEN Emit("0") END ;
+    IF res = 1 THEN Emit("1") END ;
+    IF res = 2 THEN Emit("2") END ;
+    IF res = 3 THEN Emit("3") END ;
+    IF res = 4 THEN Emit("4") END ;
+    IF res = 5 THEN Emit("5") END ;
+    IF res = 6 THEN Emit("6") END ;
+    IF res = 7 THEN Emit("7") END ;
+    IF res > 7 THEN Emit("z") END ;
+    Emit(name)
   END error;
 
   PROCEDURE Check(s: ARRAY OF CHAR);
@@ -101,30 +114,29 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   END ck;
 
 
-  PROCEDURE LinkOne*(name: ARRAY OF CHAR);
-(*
-  PROCEDURE LinkOne*(name: ARRAY OF CHAR; VAR newmod: Modules.Module);
-    VAR mod, impmod: Modules.Module;
+  PROCEDURE LinkOne*(name: ARRAY OF CHAR; VAR newmod: Module);
+    VAR mod, impmod, xmod: Module;
       i, n, key, impkey, mno, nofimps, size: INTEGER;
       p, u, v, w: INTEGER;  (*addresses*)
       ch: CHAR;
-      body: Modules.Command;
+      b: BYTE;
+      body: Command;
       fixorgP, fixorgD, fixorgT: INTEGER;
       disp, adr, imgadr, inst, pno, vno, dest, offset: INTEGER;
-      name1, impname: Modules.ModuleName;
+      name1, impname: ModuleName;
       F: Files.File; R: Files.Rider;
-      import: ARRAY 16 OF Modules.Module;
-*)
+      import: ARRAY 16 OF Module;
   BEGIN
-(*
-     mod := binroot; res := 0; nofimps := 0;
+    Emit("Linking "); Emit( name );
+    mod := binroot; res := 0; nofimps := 0;
     WHILE (mod # NIL) & (name # mod.name) DO mod := mod.next END ;
     IF mod = NIL THEN 
       F := ThisFile(name); 
       IF F # NIL THEN
+        Emit(" [ ");
         Files.Set(R, F, 0); 
         zero(name1);
-        Files.ReadString(R, name1); Files.ReadInt(R, key); Files.Read(R, ch); Files.ReadInt(R, size); 
+        Files.ReadString(R, name1); Files.ReadInt(R, key); Files.Read(R, b); ch:=CHR(b); Files.ReadInt(R, size); 
         zero(importing);
         importing := name1;
         IF ch = versionkey THEN
@@ -132,7 +144,9 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           Files.ReadString(R, impname);   (*imports*)
           WHILE (impname[0] # 0X) & (res = 0) DO
             Files.ReadInt(R, impkey);
-            LinkOne(impname, impmod); import[nofimps] := impmod; importing := name1;
+            LinkOne(impname, impmod);
+            import[nofimps] := impmod;
+            importing := name1;
             IF res = 0 THEN
               IF impmod.key = impkey THEN INC(impmod.refcnt); INC(nofimps)
               ELSE error(3, name1); imported := impname
@@ -142,7 +156,8 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
             Files.ReadString(R, impname)
           END
         ELSE  error(2, name1) 
-        END
+        END ;
+        Emit(" ] ")
       ELSE (* error(1, name) *)
       END ;
       IF res = 0 THEN 
@@ -150,7 +165,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
         IF binAllocPtr + size < limit THEN (*allocate*)
             p:= binAllocPtr;
             i:=p; WHILE i < ((p + size + 100H) DIV 20H * 20H)  DO SYSTEM.PUT( i, 0); INC(i,4) END;
-            mod := SYSTEM.VAL(Modules.Module, p);
+            mod := SYSTEM.VAL(Module, p);
             SYSTEM.PUT( SYSTEM.ADR(binAllocPtr), (p + size + 100H) DIV 20H * 20H); 
             mod.size := binAllocPtr - p; 
             IF binroot # NIL THEN  mod.num := binroot.num + 1
@@ -172,21 +187,22 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
         Files.ReadInt(R, n);
         WHILE n > 0 DO SYSTEM.PUT(p, 0); INC(p, 4); DEC(n, 4) END ;  (*variable space*)
         Files.ReadInt(R, n);
-        WHILE n > 0 DO Files.Read(R, ch); SYSTEM.PUT(p, ch); INC(p); DEC(n) END ;   (*strings*)
+        WHILE n > 0 DO Files.Read(R, b); ch:=CHR(b); SYSTEM.PUT(p, ch); INC(p); DEC(n) END ;   (*strings*)
         mod.code := p;  (*program*)
         Files.ReadInt(R, n);
         WHILE n > 0 DO Files.ReadInt(R, w); SYSTEM.PUT(p, w); INC(p, 4); DEC(n) END ;  (*program code*)
         mod.imp := p;  (*copy imports*)
         i := 0;
         WHILE i < nofimps DO
-          SYSTEM.PUT(p, import[i]); INC(p, 4); INC(i)                                                                   
+          xmod:=import[i]; (*should go in SYSTEM.PUT *)
+          SYSTEM.PUT(p, 0); INC(p, 4); INC(i)                                                                   
         END ;
         mod.cmd := p;  (*commands*) 
-        Files.Read(R, ch);
+        Files.Read(R, b); ch:=CHR(b);
         WHILE ch # 0X DO
-          REPEAT SYSTEM.PUT(p, ch); INC(p); Files.Read(R, ch) UNTIL ch = 0X;
+          b:=ORD(ch);REPEAT SYSTEM.PUT(p, b); INC(p); Files.Read(R, b); ch:=CHR(b) UNTIL ch = 0X;
           REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 4 = 0;
-          Files.ReadInt(R, n); SYSTEM.PUT(p, n); INC(p, 4); Files.Read(R, ch)
+          Files.ReadInt(R, n); SYSTEM.PUT(p, n); INC(p, 4); Files.Read(R, b); ch:=CHR(b)
         END ;
         REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 4 = 0;
         mod.ent := p; (*entries*)
@@ -197,13 +213,13 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
         WHILE (w >= 0) & (~R.eof) DO SYSTEM.PUT(p, mod.data + w - binStart ); INC(p, 4); Files.ReadInt(R, w) END ;
         SYSTEM.PUT(p, 0); INC(p, 4);
         Files.ReadInt(R, fixorgP); Files.ReadInt(R, fixorgD); Files.ReadInt(R, fixorgT);
-        Files.ReadInt(R, w); body := SYSTEM.VAL(Modules.Command, mod.code + w - binStart );
-        Files.Read(R, ch);
+        Files.ReadInt(R, w); body := SYSTEM.VAL(Command, mod.code + w - binStart );
+        Files.Read(R, b); ch:=CHR(b);
         IF ch # "O" THEN (*corrupted file*)  mod := NIL (* ; error(4, name) *) END
       END ;
       IF res = 0 THEN (*fixup of BL*)
         adr := mod.code + fixorgP*4;
-
+(*
         WHILE adr # mod.code DO
           SYSTEM.GET(adr, inst);
           mno := inst DIV 100000H MOD 10H;
@@ -252,15 +268,14 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           END ;
           SYSTEM.PUT(adr, inst); adr := adr - disp*4 
     (*      SYSTEM.PUT(adr, 44444444H ); adr := adr - disp*4  *)
-        END ;
-
+        END ;)
         SYSTEM.PUT( binStart, body )            (* module initialization vector *)
+*)
       ELSIF res = 3 THEN importing := name;
         WHILE nofimps > 0 DO DEC(nofimps); DEC(import[nofimps].refcnt) END
       END 
     END;
     newmod :=  mod;
-*)
   END LinkOne;
 
   PROCEDURE Load*;
@@ -324,38 +339,36 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   END Strip;
 
   PROCEDURE Link*(name: ARRAY OF CHAR; format: INTEGER);
-(*
+
     VAR
+      image: RawBin;
+      Lname : ModuleName;
+(*
       T: Texts.Text;
       S: Texts.Scanner;
-      F: Files.File;  R: Files.Rider;
-      M, p : Modules.Module; 
-      Lname : ModuleName;
-      i,v : INTEGER;
 *)
+      F: Files.File;  R: Files.Rider;
+      M, p : Module; 
+      i,v : INTEGER;
   BEGIN 
-(*
-    binStart := Modules.AllocPtr; binMTOrg := binStart + 32; binroot := NIL; res:= 0;
-    limit:= Kernel.heapOrg; DEC(limit, 8000H);
-    binAllocPtr :=  binStart+ 256; i:= 0;
-    WHILE i < 256+80 DO SYSTEM.PUT(binStart+i, 0 ); INC(i,4) END;
-    Texts.OpenWriter(W); Texts.WriteString(W, "Linking "); 
-    Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos);
-    Texts.Scan(S);
-    IF S.class = Texts.Name THEN
-        NEW(T); Texts.Open(T, S.s);
-        Texts.WriteString(W, S.s); 
-        F:= ThisFile( S.s );
+    NEW(image);
+
+    binStart := SYSTEM.VAL(INTEGER,image); binMTOrg := binStart + 32; binroot := NIL; res:= 0;
+    limit:= binStart + 1073741824; 
+    binAllocPtr :=  binStart+ 256;
+    i:= 0; WHILE i < 256+80 DO SYSTEM.PUT(binStart+i, 0 ); INC(i,4) END;    (* 8 bytes in system put ? *)
+(*    Emit("Linking "); Emit( name ); *)
+        F:= ThisFile( name );
         IF F # NIL THEN (* LinkOne this module *)
-          Texts.WriteLn(W);  Texts.WriteString(W, " binary buffer at: ");  Texts.WriteHex(W, binStart);   Texts.WriteLn(W);
-          zero(Lname);
-          i:=0; WHILE (S.s[i] #0X ) & (i < LEN(Lname)) &( i < LEN(S.s)) DO Lname[i]:=S.s[i] ; INC(i) END;
-          LinkOne( Lname , M );
+(*          EmitLn;  Emit( " binary buffer at: ?? ");  EmitHex(binStart);  EmitLn; *)
+          LinkOne( name , M );
           SYSTEM.PUT(binStart + 20,SYSTEM.VAL(INTEGER,binroot) - binStart );
           SYSTEM.PUT(binStart + 252, 12345678H );           (* A fingerprint *)
+(*
           p:=SYSTEM.VAL(Modules.Module,binroot);
-          F:=ThisBinFile(p.name);
-
+*)
+          F:=ThisBinFile(name);
+(*
 
           WHILE p # NIL DO  (* fix up module chain of pointers*)
             Texts.WriteString(W, p.name);   Texts.WriteString(W, " at "); Texts.WriteHex(W, p.data );
@@ -384,12 +397,10 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           WHILE i < binAllocPtr DO SYSTEM.GET( i, v); Files.WriteInt(R,v); INC(i,4) END;
           Files.Register(F);
           Texts.WriteString(W, "Binary Written");  Texts.WriteLn(W);
-
-        ELSE Texts.WriteString(W, " (not found)")
-        END 
-   END;
-   Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf) 
 *)
+        ELSE Emit(" (not found)"); EmitLn
+        END 
+(*   END *)
   END Link;
 
 

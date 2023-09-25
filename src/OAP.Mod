@@ -1012,7 +1012,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       OAS.Init(T, 0);
       Module;
       IF ccFMT > 0 THEN
-        Emit("Linking "); Emit( f ); EmitLn;
+        Emit("Preparing "); Emit( f ); EmitLn;
         Link;  
       END ;
     ELSE Emit( f ); Emit(" not found"); EmitLn

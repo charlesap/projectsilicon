@@ -1,13 +1,13 @@
 MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compiler; code generator for Arm 64-bit*)
   IMPORT SYSTEM, Out, Files, OAS, OAB;
-  (*Code generator for Oberon compiler for RISC processor.
-     Procedural interface to Parser OSAP; result in array "code".
+  (*Code generator for Oberon compiler for Arm processor.
+     Procedural interface to Parser OAP; result in array "code".
      Procedure Close writes code-files*)
 
-  CONST WordSize* = 4;
+  CONST WordSize* = 8;
     StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*)
     MT = 12; SP = 14; LNK = 15;   (*dedicated registers*)
-    maxCode = 8000; maxStrx = 2400; maxTD = 160; C24 = 1000000H;
+    maxCode = 24000; maxStrx = 2400; maxTD = 640; C24 = 1000000H;
     Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)
 
   (*frequently used opcodes*)  U = 2000H; V = 1000H;
@@ -46,8 +46,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     verbose: BOOLEAN;
     
     relmap: ARRAY 6 OF INTEGER;  (*condition codes for relations*)
-    code: ARRAY maxCode OF INTEGER;
-    data: ARRAY maxTD OF INTEGER;  (*type descriptors*)
+    code: ARRAY maxCode OF BYTE;
+    data: ARRAY maxTD OF BYTE;  (*type descriptors*)
     str: ARRAY maxStrx OF CHAR;
 
   (*instruction assemblers according to formats*)
@@ -61,15 +61,46 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN Out.Ln
   END EmitLn;
 
+  PROCEDURE PutCode( pc, i: INTEGER);
+    VAR I: INTEGER;
+  BEGIN
+    code[pc*4] := i MOD 100H;
+    code[pc*4+1] := i DIV 100H MOD 100H;
+    code[pc*4+2] := i DIV 10000H MOD 100H;
+    code[pc*4+3] := i DIV 1000000H MOD 100H;
+  END PutCode;
+
+  PROCEDURE GetCode( pc: INTEGER):INTEGER;
+  BEGIN 
+    RETURN code[pc*4] + code[pc*4+1]*100H + code[pc*4+2]*10000H + code[pc*4+3]*1000000H
+  END GetCode;
+
+  PROCEDURE PutData( pc, i: INTEGER);
+    VAR I: INTEGER;
+  BEGIN
+    data[pc*4] := i MOD 100H;
+    data[pc*4+1] := i DIV 100H MOD 100H;
+    data[pc*4+2] := i DIV 10000H MOD 100H;
+    data[pc*4+3] := i DIV 1000000H MOD 100H;
+  END PutData;
+
+  PROCEDURE GetData( pc: INTEGER):INTEGER;
+  BEGIN 
+    RETURN data[pc*4] + data[pc*4+1]*100H + data[pc*4+2]*10000H + data[pc*4+3]*1000000H
+  END GetData;
+
   PROCEDURE Put0(op, a, b, c: INTEGER);
+    VAR i: INTEGER;
   BEGIN (*emit format-0 instruction*)
-    code[pc] := ((a*10H + b) * 10H + op) * 10000H + c; INC(pc)
+    PutCode( pc, ((a*10H + b) * 10H + op) * 10000H + c);
+    INC(pc)
   END Put0;
 
   PROCEDURE Put1(op, a, b, im: INTEGER);
   BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
     IF im < 0 THEN INC(op, V) END ;
-    code[pc] := (((a+40H) * 10H + b) * 10H + op) * 10000H + (im MOD 10000H); INC(pc)
+    PutCode(pc, (((a+40H) * 10H + b) * 10H + op) * 10000H + (im MOD 10000H));
+    INC(pc)
   END Put1;
 
   PROCEDURE Put1a(op, a, b, im: INTEGER);
@@ -83,12 +114,13 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
 
   PROCEDURE Put2(op, a, b, off: INTEGER);
   BEGIN (*emit load/store instruction*)
-    code[pc] := ((op * 10H + a) * 10H + b) * 100000H + (off MOD 100000H); INC(pc)
+    PutCode( pc, ((op * 10H + a) * 10H + b) * 100000H + (off MOD 100000H));
+    INC(pc)
   END Put2;
 
   PROCEDURE Put3(op, cond, off: INTEGER);
   BEGIN (*emit branch instruction*)
-    code[pc] := ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H); INC(pc)
+    PutCode( pc, ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H)); INC(pc)
   END Put3;
 
   PROCEDURE incR;
@@ -120,7 +152,10 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END negated;
 
   PROCEDURE fix(at, with: INTEGER);
-  BEGIN code[at] := code[at] DIV C24 * C24 + (with MOD C24)
+    VAR t: INTEGER;
+  BEGIN
+    t:= GetCode(at);
+    PutCode( at, t DIV C24 * C24 + (with MOD C24));
   END fix;
 
   PROCEDURE FixOne*(at: INTEGER);
@@ -130,15 +165,15 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE FixLink*(L: INTEGER);
     VAR L1: INTEGER;
   BEGIN
-    WHILE L # 0 DO L1 := code[L] MOD 40000H; fix(L, pc-L-1); L := L1 END
+    WHILE L # 0 DO L1 := GetCode(L) MOD 40000H; fix(L, pc-L-1); L := L1 END
   END FixLink;
 
   PROCEDURE FixLinkWith(L0, dst: INTEGER);
     VAR L1: INTEGER;
   BEGIN
     WHILE L0 # 0 DO
-      L1 := code[L0] MOD C24;
-      code[L0] := code[L0] DIV C24 * C24 + ((dst - L0 - 1) MOD C24); L0 := L1
+      L1 := GetCode(L0) MOD C24;
+      PutCode( L0, GetCode(L0) DIV C24 * C24 + ((dst - L0 - 1) MOD C24)); L0 := L1
     END
   END FixLinkWith;
 
@@ -146,8 +181,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     VAR L2, L3: INTEGER;
   BEGIN 
     IF L0 # 0 THEN L3 := L0;
-      REPEAT L2 := L3; L3 := code[L2] MOD 40000H UNTIL L3 = 0;
-      code[L2] := code[L2] + L1; L1 := L0
+      REPEAT L2 := L3; L3 := GetCode(L2) MOD 40000H UNTIL L3 = 0;
+      PutCode( L2, GetCode(L2) + L1); L1 := L0
     END ;
     RETURN L1
   END merged;
@@ -219,7 +254,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     IF x.type.form = OAB.Bool THEN
       IF x.mode = OAB.Const THEN x.r := 15 - x.a*8
       ELSE load(x);
-        IF code[pc-1] DIV 40000000H # -2 THEN Put1(Cmp, x.r, x.r, 0) END ;
+        IF GetCode(pc-1) DIV 40000000H # -2 THEN Put1(Cmp, x.r, x.r, 0) END ;
         x.r := NE; DEC(RH)
       END ;
       x.mode := Cond; x.a := 0; x.b := 0
@@ -329,7 +364,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE Q(T: OAB.Type; VAR dcw: INTEGER);
   BEGIN (*one entry of type descriptor extension table*)
     IF T.base # NIL THEN
-      Q(T.base, dcw); data[dcw] := (T.mno*1000H + T.len) * 1000H + dcw - fixorgT;
+      Q(T.base, dcw); PutData(dcw, (T.mno*1000H + T.len) * 1000H + dcw - fixorgT);
       fixorgT := dcw; INC(dcw)
     END
   END Q;
@@ -337,7 +372,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE FindPtrFlds(typ: OAB.Type; off: INTEGER; VAR dcw: INTEGER);
     VAR fld: OAB.Object; i, s: INTEGER;
   BEGIN
-    IF (typ.form = OAB.Pointer) OR (typ.form = OAB.NilTyp) THEN data[dcw] := off; INC(dcw)
+    IF (typ.form = OAB.Pointer) OR (typ.form = OAB.NilTyp) THEN PutData( dcw, off); INC(dcw)
     ELSIF typ.form = OAB.Record THEN
       fld := typ.dsc;
       WHILE fld # NIL DO FindPtrFlds(fld.type, fld.val + off, dcw); fld := fld.next END
@@ -353,13 +388,13 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     IF s <= 24 THEN s := 32 ELSIF s <= 56 THEN s := 64 ELSIF s <= 120 THEN s := 128
     ELSE s := (s+263) DIV 256 * 256
     END ;
-    T.len := dc; data[dcw] := s; INC(dcw);  (*len used as address*)
+    T.len := dc; PutData(dcw, s); INC(dcw);  (*len used as address*)
     k := T.nofpar;   (*extension level!*)
     IF k > 3 THEN OAS.Mark("ext level too large")
     ELSE Q(T, dcw);
-      WHILE k < 3 DO data[dcw] := -1; INC(dcw); INC(k) END
+      WHILE k < 3 DO PutData(dcw, -1); INC(dcw); INC(k) END
     END ;
-    FindPtrFlds(T, 0, dcw); data[dcw] := -1; INC(dcw); tdx := dcw; dc := dcw*4;
+    FindPtrFlds(T, 0, dcw); PutData(dcw, -1); INC(dcw); tdx := dcw; dc := dcw*4;
     IF tdx >= maxTD THEN OAS.Mark("too many record types"); tdx := 0 END
   END BuildTD;
 
@@ -583,7 +618,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN
     IF (y.mode = OAB.Const) & (y.type.form # OAB.Proc) THEN
       load(x);
-      IF (y.a # 0) OR ~(op IN {OAS.eql, OAS.neq}) OR (code[pc-1] DIV 40000000H # -2) THEN Put1a(Cmp, x.r, x.r, y.a) END ;
+      IF (y.a # 0) OR ~(op IN {OAS.eql, OAS.neq}) OR (GetCode(pc-1) DIV 40000000H # -2) THEN Put1a(Cmp, x.r, x.r, y.a) END ;
       DEC(RH)
     ELSE
       IF (x.mode = Cond) OR (y.mode = Cond) THEN OAS.Mark("not implemented") END ;
@@ -1012,7 +1047,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE Open*(v: INTEGER; vb: BOOLEAN);
   BEGIN pc := 0; tdx := 0; strx := 0; RH := 0; fixorgP := 0; fixorgD := 0; fixorgT := 0; check := v # 0; version := v; verbose := vb;
     IF v = 0 THEN pc := 1;
-      REPEAT code[pc] := 0; INC(pc) UNTIL pc = 8
+      REPEAT PutCode( pc, 0); INC(pc) UNTIL pc = 8
     END
   END Open;
 
@@ -1022,7 +1057,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
 
   PROCEDURE Header*;
   BEGIN entry := pc*4;
-    IF version = 0 THEN code[0] := 0E7000000H-1 + pc;  Put1a(Mov, SP, 0, StkOrg0)  (*RISC-0*)
+    IF version = 0 THEN PutCode( 0, 0E7000000H-1 + pc);  Put1a(Mov, SP, 0, StkOrg0)  (*RISC-0*)
     ELSE Put1(Sub, SP, SP, 4); Put2(Str, LNK, SP, 0)
     END
   END Header;
@@ -1089,14 +1124,14 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     Files.WriteInt(R, tdx*4);
     i := 0;
     IF verbose THEN Emit("Writing type descriptors"); EmitLn; END;
-    WHILE i < tdx DO Files.WriteInt(R, data[i]); INC(i) END ; (*type descriptors*)
+    WHILE i < tdx DO Files.WriteInt(R, GetData(i)); INC(i) END ; (*type descriptors*)
     Files.WriteInt(R, varsize - tdx*4);  (*data*)
     Files.WriteInt(R, strx);
     IF verbose THEN Emit("Writing strings"); EmitLn; END;
     FOR i := 0 TO strx-1 DO Files.Write(R, ORD(str[i])) END ;  (*strings*)
     Files.WriteInt(R, pc);  (*code len*)
     IF verbose THEN Emit("Writing program code"); EmitLn; END;
-    FOR i := 0 TO pc-1 DO Files.WriteInt(R, code[i]) END ;  (*program*)
+    FOR i := 0 TO pc-1 DO Files.WriteInt(R, GetCode(i)) END ;  (*program*)
     obj := OAB.topScope.next;
     IF verbose THEN Emit("Writing command entries"); EmitLn; END;
     WHILE obj # NIL DO  (*commands*)
