@@ -381,15 +381,15 @@ BEGIN
   byteType := type(Byte, Int, 1);
   boolType := type(Bool, Bool, 1);
   charType := type(Char, Char,1);
-  intType := type(Int, Int, 4);
-  realType := type(Real, Real, 4);
-  setType := type(Set, Set,4);
-  nilType := type(NilTyp, NilTyp, 4);
-  noType := type(NoTyp, NoTyp, 4);
-  strType := type(String, String, 8);
+  intType := type(Int, Int, 8);
+  realType := type(Real, Real, 8);
+  setType := type(Set, Set,8);
+  nilType := type(NilTyp, NilTyp, 8);
+  noType := type(NoTyp, NoTyp, 8);
+  strType := type(String, String, 16);
     
   (*initialize universe with data types and in-line procedures;
-    INTEGER is synonym to INTEGER, LONGREAL to REAL.
+    LONGINT is synonym to INTEGER, LONGREAL to REAL.
     LED, ADC, SBC; LDPSR, LDREG, REG, COND are not in language definition*)
   system := NIL;  (*n = procno*10 + nofpar*)
   enter("UML", SFunc, intType, 132);  (*functions*)
