@@ -1,21 +1,20 @@
 MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2021*)
-  IMPORT SYSTEM, Out, Files, OAS;
-  (* IMPORT SYSTEM, Files, Modules, Kernel, Texts, Oberon; *)
+  IMPORT SYSTEM, Out, Files, OAS, OAB;
 
   CONST
  
-     versionkey = 1X; MT = 12; DescSize = 80;
+     versionkey = 1X; MT = 12; DescSize = 128;
 
   TYPE
     Module = POINTER TO ModDesc;
     Command = PROCEDURE;
     ModuleName = ARRAY 32 OF CHAR; (* ModuleName and ModDesc must match Modules.Mod *)
 
-    ModDesc = RECORD
-        name: ModuleName;
-        next: Module;
-        key, num, size, refcnt: INTEGER;
-        data, code, imp, cmd, ent, ptr, unused: INTEGER  (*addresses*)
+    ModDesc = RECORD (* was 80 bytes, now 128 *)
+        name: ModuleName;                                               (* 32 *)
+        next: Module;                                                   (*  8 *)
+        key, num, size, refcnt: INTEGER;                                (* 32 *)
+        data, code, imp, cmd, ent, ptr, unused: INTEGER  (*addresses*)  (* 56 *)
       END ;
 
     RawBin = POINTER TO RawBinDesc;
@@ -31,7 +30,6 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
     binMTOrg, binStart, binAllocPtr, res*: INTEGER;
     importing*, imported*: ModuleName;
     limit: INTEGER;
- (*   W: Texts.Writer; *)
     Mlist: ARRAY 16 OF ModuleName;
 
   PROCEDURE Emit(s: ARRAY OF CHAR);
@@ -43,23 +41,13 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   BEGIN Out.Ln
   END EmitLn;
 
-  PROCEDURE ThisFile(name: ARRAY OF CHAR): Files.File;
-    VAR i: INTEGER;
-      filename: ModuleName;
-  BEGIN
-    i := 0;
-    WHILE name[i] # 0X DO filename[i] := name[i]; INC(i,1) END ;
-    filename[i] := "."; filename[i+1] := "a"; filename[i+2] := "6"; filename[i+3] := "4"; filename[i+4] := 0X;
-    RETURN Files.Old(filename)
-  END ThisFile;
-
   PROCEDURE zero( VAR s: ARRAY OF CHAR);
     VAR i : INTEGER;
   BEGIN i:=0;
     WHILE i < LEN(s) DO s[i]:=0X; INC(i) END
   END zero;
 
-
+(*
   PROCEDURE ThisBinFile(name: ARRAY OF CHAR): Files.File;
     VAR i: INTEGER;
       filename: ModuleName;
@@ -69,6 +57,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
     filename[i] := "."; filename[i+1] := "b"; filename[i+2] := "i"; filename[i+3] := "n"; filename[i+4] := 0X;
     RETURN Files.New(filename)
   END ThisBinFile;
+*)
 
   PROCEDURE error(n: INTEGER; name: ModuleName);
   BEGIN 
@@ -124,6 +113,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
       fixorgP, fixorgD, fixorgT: INTEGER;
       disp, adr, imgadr, inst, pno, vno, dest, offset: INTEGER;
       name1, impname: ModuleName;
+      fname: OAS.Ident;
       F: Files.File; R: Files.Rider;
       import: ARRAY 16 OF Module;
   BEGIN
@@ -131,7 +121,8 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
     mod := binroot; res := 0; nofimps := 0;
     WHILE (mod # NIL) & (name # mod.name) DO mod := mod.next END ;
     IF mod = NIL THEN 
-      F := ThisFile(name); 
+      OAB.MakeFileName(fname, name, ".a64");
+      F := Files.Old(fname); 
       IF F # NIL THEN
         Emit(" [ ");
         Files.Set(R, F, 0); 
@@ -343,6 +334,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
     VAR
       image: RawBin;
       Lname : ModuleName;
+      fname: OAS.Ident;
 (*
       T: Texts.Text;
       S: Texts.Scanner;
@@ -355,19 +347,19 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
 
     binStart := SYSTEM.VAL(INTEGER,image); binMTOrg := binStart + 32; binroot := NIL; res:= 0;
     limit:= binStart + 1073741824; 
-    binAllocPtr :=  binStart+ 256;
-    i:= 0; WHILE i < 256+80 DO SYSTEM.PUT(binStart+i, 0 ); INC(i,4) END;    (* 8 bytes in system put ? *)
-(*    Emit("Linking "); Emit( name ); *)
-        F:= ThisFile( name );
+    binAllocPtr :=  binStart+ 512;
+    i:= 0; WHILE i < 512+128 DO SYSTEM.PUT(binStart+i, 0 ); INC(i,8) END;   
+        OAB.MakeFileName(fname, name, ".a64");
+        F := Files.Old(fname); 
         IF F # NIL THEN (* LinkOne this module *)
-(*          EmitLn;  Emit( " binary buffer at: ?? ");  EmitHex(binStart);  EmitLn; *)
           LinkOne( name , M );
-          SYSTEM.PUT(binStart + 20,SYSTEM.VAL(INTEGER,binroot) - binStart );
-          SYSTEM.PUT(binStart + 252, 12345678H );           (* A fingerprint *)
+          SYSTEM.PUT(binStart + 40,SYSTEM.VAL(INTEGER,binroot) - binStart );
+          SYSTEM.PUT(binStart + 504, 1234567887654321H );           (* A fingerprint *)
 (*
           p:=SYSTEM.VAL(Modules.Module,binroot);
 *)
-          F:=ThisBinFile(name);
+          OAB.MakeFileName(fname, name, ".bin");
+          F := Files.New(fname); 
 (*
 
           WHILE p # NIL DO  (* fix up module chain of pointers*)
@@ -395,9 +387,9 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           SYSTEM.GET(binStart,v);
           SYSTEM.PUT(binStart, 0E7H * 1000000H + (v DIV 4) -1);      (* Branch to Module start routine *)
           WHILE i < binAllocPtr DO SYSTEM.GET( i, v); Files.WriteInt(R,v); INC(i,4) END;
-          Files.Register(F);
-          Texts.WriteString(W, "Binary Written");  Texts.WriteLn(W);
 *)
+          Files.Register(F);
+          Emit( "Binary Written"); EmitLn
         ELSE Emit(" (not found)"); EmitLn
         END 
 (*   END *)
