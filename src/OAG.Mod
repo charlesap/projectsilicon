@@ -7,7 +7,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   CONST WordSize* = 8;
     StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*)
     MT = 12; SP = 14; LNK = 15;   (*dedicated registers*)
-    maxCode = 24000; maxStrx = 2400; maxTD = 640; C24 = 1000000H;
+    maxCode = 240000; maxStrx = 2400; maxTD = 640; C24 = 1000000H;
     Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)
 
   (*frequently used opcodes*)  U = 2000H; V = 1000H;
@@ -71,8 +71,10 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END PutCode;
 
   PROCEDURE GetCode( pc: INTEGER):INTEGER;
+    VAR I: INTEGER;
   BEGIN 
-    RETURN code[pc*4] + code[pc*4+1]*100H + code[pc*4+2]*10000H + code[pc*4+3]*1000000H
+    I:= code[pc*4] + code[pc*4+1]*100H + code[pc*4+2]*10000H + code[pc*4+3]*1000000H;
+    RETURN I
   END GetCode;
 
   PROCEDURE PutData( pc, i: INTEGER);
@@ -85,8 +87,10 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END PutData;
 
   PROCEDURE GetData( pc: INTEGER):INTEGER;
+    VAR I: INTEGER;
   BEGIN 
-    RETURN data[pc*4] + data[pc*4+1]*100H + data[pc*4+2]*10000H + data[pc*4+3]*1000000H
+    I:=  data[pc*4] + data[pc*4+1]*100H + data[pc*4+2]*10000H + data[pc*4+3]*1000000H;
+    RETURN I
   END GetData;
 
   PROCEDURE Put0(op, a, b, c: INTEGER);

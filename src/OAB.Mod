@@ -1,5 +1,5 @@
 MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
-  IMPORT Files, OAS;
+  IMPORT Out, Files, OAS;
   (*Definition of data types Object and Type, which together form the data structure
     called "symbol table". Contains procedures for creation of Objects, and for search:
     NewObj, this, thisimport, thisfield (and OpenScope, CloseScope).
@@ -7,7 +7,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     Import and Export. This module contains the list of standard identifiers, with which
     the symbol table (universe), and that of the pseudo-module SYSTEM are initialized. *)
 
-  CONST versionkey* = 1; maxTypTab = 64;
+  CONST versionkey* = 1; maxTypTab = 127;
     (* class values*) Head* = 0;
       Const* = 1; Var* = 2; Par* = 3; Fld* = 4; Typ* = 5;
       SProc* = 6; SFunc* = 7; Mod* = 8;
@@ -67,6 +67,15 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     intType*, realType*, setType*, nilType*, noType*, strType*: Type;
     nofmod, Ref: INTEGER;
     typtab: ARRAY maxTypTab OF Type;
+
+  PROCEDURE Emit(s: ARRAY OF CHAR);
+    VAR ss: ARRAY 128 OF CHAR;
+  BEGIN ss:=s; Out.String(ss);
+  END Emit;
+
+  PROCEDURE EmitLn;
+  BEGIN Out.Ln
+  END EmitLn;
 
   PROCEDURE NewObj*(VAR obj: Object; id: OAS.Ident; class: INTEGER);  (*insert new Object with name id*)
     VAR new, x: Object;
@@ -164,11 +173,12 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
       fld, par, obj, mod, last: Object;
       t: Type;
       name, modname: OAS.Ident;
-  BEGIN Read(R, ref);
+  BEGIN 
+    Read(R, ref);
     IF ref < 0 THEN T := typtab[-ref]  (*already read*)
     ELSE NEW(t); T := t; typtab[ref] := t; t.mno := thismod.lev;
       Read(R, form); t.form := form;
-      IF form = Pointer THEN InType(R, thismod, t.base); t.size := 4
+      IF form = Pointer THEN InType(R, thismod, t.base); t.size := 8
       ELSIF form = Array THEN
         InType(R, thismod, t.base); Files.ReadNum(R, t.len); Files.ReadNum(R, t.size)
       ELSIF form = Record THEN
@@ -208,7 +218,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
         END ;
         typtab[ref] := T
       END
-    END
+    END;
   END InType;
   
   PROCEDURE Import*(VAR modid, modid1: OAS.Ident);
@@ -224,6 +234,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     ELSE MakeFileName(fname, modid1, ".s64"); F := Files.Old(fname);
       IF F # NIL THEN
         Files.Set(R, F, 0); Files.ReadInt(R, key); Files.ReadInt(R, key); Files.ReadString(R, modname);
+        Emit(" ");Emit(modname);
         thismod := ThisModule(modid, modid1, TRUE, key); thismod.rdo := TRUE;
         Read(R, class); (*version key*)
         IF class # versionkey THEN OAS.Mark("wrong version") END ;
@@ -279,7 +290,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     END FindHiddenPointers;
 
   BEGIN
-    IF t.ref > 0 THEN (*type was already output*) Write(R, (255-t.ref)) (*pretend the byte is signed*)
+    IF t.ref > 0 THEN (*type was already output*) Write(R, (256-t.ref)) (*pretend the byte is signed*)
     ELSE obj := t.typobj;
       IF obj # NIL THEN Write(R, Ref); t.ref := Ref; INC(Ref) ELSE (*anonymous*) Write(R, 0) END ;
       Write(R, t.form);

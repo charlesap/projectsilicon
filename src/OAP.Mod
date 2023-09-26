@@ -698,7 +698,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       INC(nofpar); obj.class := cl; obj.type := tp; obj.rdo := rdo; obj.lev := level; obj.val := adr;
       adr := adr + parsize; obj := obj.next
     END ;
-    IF adr >= 52 THEN OAS.Mark("too many parameters") END
+    IF adr >= 104 THEN OAS.Mark("too many parameters") END (*used to be 52*)
   END FPSection;
 
   PROCEDURE ProcedureType(ptype: OAB.Type; VAR parblksize: INTEGER);
@@ -931,7 +931,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       OAB.Init; OAB.OpenScope;
       IF sym = OAS.ident THEN
         OAS.CopyId(modid); OAS.Get(sym);
-        Emit(modid); 
+        Emit(modid); Emit(": ");
       ELSE OAS.Mark("identifier expected")
       END ;
       Check(OAS.semicolon, "no ;"); level := 0; exno := 1; key := 0;
