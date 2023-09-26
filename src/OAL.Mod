@@ -47,32 +47,10 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
     WHILE i < LEN(s) DO s[i]:=0X; INC(i) END
   END zero;
 
-(*
-  PROCEDURE ThisBinFile(name: ARRAY OF CHAR): Files.File;
-    VAR i: INTEGER;
-      filename: ModuleName;
-  BEGIN
-    i := 0;
-    WHILE name[i] # 0X DO filename[i] := name[i]; INC(i) END ;
-    filename[i] := "."; filename[i+1] := "b"; filename[i+2] := "i"; filename[i+3] := "n"; filename[i+4] := 0X;
-    RETURN Files.New(filename)
-  END ThisBinFile;
-*)
-
   PROCEDURE error(n: INTEGER; name: ModuleName);
   BEGIN 
     res := n; importing := name; Emit("!"); 
-    IF res < 0 THEN Emit("x") END ;
-    IF res = 0 THEN Emit("0") END ;
-    IF res = 1 THEN Emit("1") END ;
-    IF res = 2 THEN Emit("2") END ;
-    IF res = 3 THEN Emit("3") END ;
-    IF res = 4 THEN Emit("4") END ;
-    IF res = 5 THEN Emit("5") END ;
-    IF res = 6 THEN Emit("6") END ;
-    IF res = 7 THEN Emit("7") END ;
-    IF res > 7 THEN Emit("z") END ;
-    Emit(name)
+    Emit(name);Out.Int(res,3)
   END error;
 
   PROCEDURE Check(s: ARRAY OF CHAR);
@@ -102,10 +80,9 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
     EmitLn;  
   END ck;
 
-
   PROCEDURE LinkOne*(name: ARRAY OF CHAR; VAR newmod: Module);
     VAR mod, impmod, xmod: Module;
-      i, n, key, impkey, mno, nofimps, size: INTEGER;
+      i, n, key, impkey, mno, nofimps, size, flen: INTEGER;
       p, u, v, w: INTEGER;  (*addresses*)
       ch: CHAR;
       b: BYTE;
@@ -117,21 +94,18 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
       F: Files.File; R: Files.Rider;
       import: ARRAY 16 OF Module;
   BEGIN
-    Emit("Linking "); Emit( name );
     mod := binroot; res := 0; nofimps := 0;
     WHILE (mod # NIL) & (name # mod.name) DO mod := mod.next END ;
     IF mod = NIL THEN 
       OAB.MakeFileName(fname, name, ".a64");
       F := Files.Old(fname); 
       IF F # NIL THEN
-        Emit(" [ ");
         Files.Set(R, F, 0); 
-        zero(name1);
-        Files.ReadString(R, name1); Files.ReadInt(R, key); Files.Read(R, b); ch:=CHR(b); Files.ReadInt(R, size); 
-        zero(importing);
+        flen := Files.Length(F);
+        Files.ReadString(R, name1);
+        Files.ReadInt(R, key); Files.Read(R, b); ch:=CHR(b); Files.ReadInt(R, size);
         importing := name1;
         IF ch = versionkey THEN
-          zero(impname);
           Files.ReadString(R, impname);   (*imports*)
           WHILE (impname[0] # 0X) & (res = 0) DO
             Files.ReadInt(R, impkey);
@@ -146,10 +120,12 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
             zero(impname);
             Files.ReadString(R, impname)
           END
-        ELSE  error(2, name1) 
+        ELSE
+          Emit(" version key mismatch"); Out.Int( b, 4 ); Emit(" vs"); Out.Int( ORD(versionkey), 4 ); Emit(" ");
+          error(2, name1) 
         END ;
-        Emit(" ] "); EmitLn
-      ELSE (* error(1, name) *)
+        Emit(" "); Emit(name1);
+      ELSE  error(1, name1) 
       END ;
       IF res = 0 THEN 
         INC(size, DescSize);
@@ -345,13 +321,15 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   BEGIN 
     NEW(image);
 
-    binStart := SYSTEM.VAL(INTEGER,image); binMTOrg := binStart + 32; binroot := NIL; res:= 0;
+    binStart := SYSTEM.VAL(INTEGER,image); binMTOrg := binStart + 64; binroot := NIL; res:= 0;
     limit:= binStart + 1073741824; 
     binAllocPtr :=  binStart+ 512;
     i:= 0; WHILE i < 512+128 DO SYSTEM.PUT(binStart+i, 0 ); INC(i,8) END;   
-        OAB.MakeFileName(fname, name, ".a64");
+(*        OAB.MakeFileName(fname, name, ".a64");
         F := Files.Old(fname); 
         IF F # NIL THEN (* LinkOne this module *)
+          Files.Close(F);
+*)
           LinkOne( name , M );
           SYSTEM.PUT(binStart + 40,SYSTEM.VAL(INTEGER,binroot) - binStart );
           SYSTEM.PUT(binStart + 504, 1234567887654321H );           (* A fingerprint *)
@@ -389,9 +367,11 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           WHILE i < binAllocPtr DO SYSTEM.GET( i, v); Files.WriteInt(R,v); INC(i,4) END;
 *)
           Files.Register(F);
-          Emit( "Binary Written"); EmitLn
+          Emit( " linked"); EmitLn
+(*
         ELSE Emit(" (not found)"); EmitLn
         END 
+*)
 (*   END *)
   END Link;
 

@@ -62,6 +62,10 @@ MODULE Files;
   BEGIN
   END Register;
 
+  PROCEDURE Close*(f: File);
+  BEGIN
+  END Close;
+
   PROCEDURE Length*(f: File): INTEGER;
   BEGIN RETURN 0
   END Length;

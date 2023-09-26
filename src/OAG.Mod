@@ -1170,7 +1170,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     Files.WriteInt(R, -1);
     IF verbose THEN Emit("Writing heads of fixup lists"); EmitLn; END;
     Files.WriteInt(R, fixorgP); Files.WriteInt(R, fixorgD); Files.WriteInt(R, fixorgT); Files.WriteInt(R, entry);
-    Files.Write(R, ORD("O")); Files.Register(F);
+    Files.Write(R, ORD("O")); Files.Register(F); Files.Close(F);
     IF verbose THEN Emit("Closing object file"); EmitLn; END
   END Close;
 
