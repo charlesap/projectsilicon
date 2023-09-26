@@ -698,7 +698,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       INC(nofpar); obj.class := cl; obj.type := tp; obj.rdo := rdo; obj.lev := level; obj.val := adr;
       adr := adr + parsize; obj := obj.next
     END ;
-    IF adr >= 104 THEN OAS.Mark("too many parameters") END (*used to be 52*)
+    IF adr >= 104 THEN OAS.Mark("too many parameters") END (* count in bytes of parameter register space... 13 registers *)
   END FPSection;
 
   PROCEDURE ProcedureType(ptype: OAB.Type; VAR parblksize: INTEGER);
@@ -1019,8 +1019,8 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     END ;
   END Compile;
 
-BEGIN Emit("Silicon Oberon Compiler 2023.09.24");
-  EmitLn;
+BEGIN (* Emit("Silicon Oberon Compiler 2023.09.24");
+  EmitLn; *)
   NEW(dummy); dummy.class := OAB.Var; dummy.type := OAB.intType;
   expression := expression0; Type := Type0; FormalType := FormalType0
 END OAP.

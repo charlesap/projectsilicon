@@ -157,7 +157,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           END
         ELSE  error(2, name1) 
         END ;
-        Emit(" ] ")
+        Emit(" ] "); EmitLn
       ELSE (* error(1, name) *)
       END ;
       IF res = 0 THEN 
