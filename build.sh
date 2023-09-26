@@ -11,6 +11,8 @@ cd interim
 echo
 echo
 echo "in interim"
+../obnc/oac -ms E.Mod
+../obnc/oac -ms M.Mod
 ../obnc/oac -s Out.Mod
 ../obnc/oac -s Files.Mod
 ../obnc/oac -s Fonts.Mod
