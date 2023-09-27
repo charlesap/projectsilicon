@@ -138,13 +138,13 @@ MODULE OAS; (* NW 19.9.93 / 15.3.2017i, CP 2023  Scanner in Oberon-07*)
   END Ten;
 
   PROCEDURE Number(VAR sym: INTEGER);
-    CONST max = 2147483647 (*2^31 - 1*);
+    CONST max = 9223372036854775807 (* 2^63 - 1; was 2147483647 2^31 - 1*);
     VAR i, k, e, n, s, h: INTEGER; x: REAL;
-      d: ARRAY 16 OF INTEGER;
+      d: ARRAY 32 OF INTEGER; (* was 16 *)
       negE: BOOLEAN;
   BEGIN ival := 0; i := 0; n := 0; k := 0;
     REPEAT
-      IF n < 16 THEN d[n] := ORD(ch)-30H; INC(n) ELSE Mark("too many digits"); n := 0 END ;
+      IF n < 32 THEN d[n] := ORD(ch)-30H; INC(n) ELSE Mark("too many digits"); n := 0 END ;
       Texts.Read(R, ch)
     UNTIL (ch < "0") OR (ch > "9") & (ch < "A") OR (ch > "F");
     IF (ch = "H") OR (ch = "R") OR (ch = "X") THEN  (*hex*)
