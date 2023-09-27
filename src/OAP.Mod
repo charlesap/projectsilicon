@@ -986,11 +986,11 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     i:=0; WHILE o[i] > 0X DO 
       IF o[i] = "s" THEN newSF := TRUE END;
       IF o[i] = "v" THEN verbose := TRUE END;
-      IF o[i] = "b" THEN ccFMT := 1 END;  (* raw binary *)
-      IF o[i] = "r" THEN ccFMT := 2 END;  (* rsc64  *)
-      IF o[i] = "e" THEN ccFMT := 3 END;  (* elf64  *)
-      IF o[i] = "m" THEN ccFMT := 4 END;  (* macho  *)
-      IF o[i] = "p" THEN ccFMT := 5 END;  (* pe64   *)
+      IF o[i] = "b" THEN ccFMT :=  OAB.BIN     END;  (* raw binary *)
+      IF o[i] = "r" THEN ccFMT :=  OAB.RSC64   END;  (* rsc64  *)
+      IF o[i] = "e" THEN ccFMT :=  OAB.ELF64   END;  (* elf64  *)
+      IF o[i] = "m" THEN ccFMT :=  OAB.MACHO   END;  (* macho  *)
+      IF o[i] = "p" THEN ccFMT :=  OAB.PE64    END;  (* pe64   *)
       INC(i)
     END
   END Option;

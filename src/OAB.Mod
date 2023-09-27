@@ -17,6 +17,12 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
       Pointer* = 7; NilTyp* = 8; NoTyp* = 9; Proc* = 10;
       String* = 11; Array* = 12; Record* = 13;
       
+      BIN*   = 1; (*Linker output formats*)
+      RSC64* = 2; 
+      ELF64* = 3; 
+      MACHO* = 4; 
+      PE64*  = 5; 
+
   TYPE Object* = POINTER TO ObjDesc;
     Module* = POINTER TO ModDesc;
     Type* = POINTER TO TypeDesc;
