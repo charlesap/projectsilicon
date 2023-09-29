@@ -20,6 +20,7 @@ echo "in interim"
 ../obnc/oac -s OAS.Mod
 ../obnc/oac -s OAB.Mod
 ../obnc/oac -s OAG.Mod
+../obnc/oac -s Macho.Mod
 ../obnc/oac -s OAL.Mod
 ../obnc/oac -s OAP.Mod
 ../obnc/oac -ms oac.Mod
@@ -38,6 +39,7 @@ echo "in native"
 ../interim/oac -s OAS.Mod
 ../interim/oac -s OAB.Mod
 ../interim/oac -s OAG.Mod
+../interim/oac -s Macho.Mod
 ../interim/oac -s OAL.Mod
 ../interim/oac -s OAP.Mod
 ../interim/oac -ms oac.Mod
