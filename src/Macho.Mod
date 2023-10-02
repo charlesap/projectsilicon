@@ -1,8 +1,8 @@
 MODULE Macho;  (*Write a MACHO file cp 2023*)
-  IMPORT SYSTEM, Files;
+  IMPORT SYSTEM, OAB, Files;
 
   CONST
-
+    
   TYPE
 
   VAR 
@@ -12,10 +12,10 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     Files.WriteInt( R, i );
   END WR;
 
-  PROCEDURE Header(VAR R: Files.Rider; nCMD: INTEGER);
+  PROCEDURE Header(VAR R: Files.Rider; LCsz, nCMD: INTEGER);
   BEGIN 
     (* CPU type / Magic number     File type / CPU subtype          LCsz 93*8 = 2E8H / # LC          Reserved / Flags  *) 
-    WR( R, 0100000CFEEDFACFH ); WR( R, 0000000200000000H ); WR( R, 000002E800000000H + nCMD); WR( R, 0000000000200085H ); 
+    WR( R, 0100000CFEEDFACFH ); WR( R, 200000000H ); WR( R, LCsz*100000000H + nCMD); WR( R, 200085H ); 
   END Header;
  
   PROCEDURE Segment(VAR R: Files.Rider; nsect: INTEGER; nmSEGM: ARRAY OF CHAR; vmaddr, vmsize, foffset, fsize, prot, flag32: INTEGER);
@@ -135,11 +135,11 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     WR( R, p1 * 100000000H + p2 );
   END CodeSignature;
 
-  PROCEDURE MacPrefix*(VAR R: Files.Rider);
+  PROCEDURE Write*(VAR R: Files.Rider; Code, Data: OAB.Bin; CodeLimit, DataLimit, ProgramEntry: INTEGER);
     VAR i: INTEGER;
   BEGIN              (*     exit                High Word / Low Word        inout         *)
   
-    Header( R , 16 );                                                         (* 17 *)
+    Header( R , 2E8H, 16 );                                                   (* ??, 17 *)
     Segment( R, 0, "__PAGEZERO", 0, 100000000H, 0, 0, 0, 0 ); 
     Segment( R, 2, "__TEXT", 100000000H, 4000H, 0, 4000H, 500000005H, 0 ); 
     Section( R, "__text", "__TEXT",100003F90H,1CH,400003F90H,0,80000400H);    (* 100003F80H, 38H, 200003F80H, 0, 80000400H *)
@@ -277,7 +277,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
 
 
-  END MacPrefix;
+  END Write;
  
 
 

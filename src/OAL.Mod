@@ -1,5 +1,5 @@
 MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2021*)
-  IMPORT SYSTEM, Out, Files, Macho, OAS, OAB;
+  IMPORT SYSTEM, Out, Files, OAS, OAB, Macho;
 
   CONST
  
@@ -17,11 +17,12 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
         data, code, imp, cmd, ent, ptr, unused: INTEGER  (*addresses*)  (* 56 *)
       END ;
 
-    RawBin = POINTER TO RawBinDesc;
-    RawBinDesc = RECORD
+(*
+    Bin = POINTER TO BinDesc;
+    BinDesc = RECORD
         bytes: ARRAY 1024*1024*16 OF BYTE
       END ;
-
+*)
   VAR 
 
     binroot, M: Module;
@@ -31,6 +32,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
     importing*, imported*: ModuleName;
     limit: INTEGER;
     Mlist: ARRAY 16 OF ModuleName;
+   
 
   PROCEDURE Emit(s: ARRAY OF CHAR);
     VAR ss: ARRAY 128 OF CHAR;
@@ -325,7 +327,8 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   PROCEDURE Link*(name: ARRAY OF CHAR; format: INTEGER);
 
     VAR
-      image: RawBin;
+      Code,Data: OAB.Bin;
+      CodeEnd,DataEnd,ProgEntry: INTEGER;
       Lname : ModuleName;
       fname: OAS.Ident;
 (*
@@ -336,10 +339,10 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
       M, p : Module; 
       i,v : INTEGER;
   BEGIN 
-    NEW(image);
+    NEW(Code); NEW(Data);
 
-    binStart := SYSTEM.VAL(INTEGER,image); binMTOrg := binStart + 64; binroot := NIL; res:= 0;
-    limit:= binStart + 1073741824; 
+    binStart := SYSTEM.VAL(INTEGER,Code); binMTOrg := binStart + 64; binroot := NIL; res:= 0;
+    limit:= binStart + SYSTEM.SIZE(OAB.BinDesc); 
     binAllocPtr :=  binStart+ 512;
     i:= 0; WHILE i < 512+128 DO SYSTEM.PUT(binStart+i, 0 ); INC(i,8) END;   
 (*        OAB.MakeFileName(fname, name, ".a64");
@@ -360,7 +363,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           IF format = OAB.BIN   THEN BinPrefix END;
           IF format = OAB.RSC64 THEN RscPrefix END;
           IF format = OAB.ELF64 THEN ElfPrefix END;
-          IF format = OAB.MACHO THEN Macho.MacPrefix( R ) END;
+          IF format = OAB.MACHO THEN Macho.Write( R , Code, Data, CodeEnd, DataEnd, ProgEntry ) END;
           IF format = OAB.PE64  THEN PePrefix  END;
 
 (*
