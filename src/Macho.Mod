@@ -2,12 +2,6 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
   IMPORT SYSTEM, Files;
 
   CONST
-    REQDYLD = 80000000H; SEGMENT = 1H; SYMTAB = 2H; SYMSEG = 3H; THREAD = 4H; UNIXTHREAD = 5H;
-    LOADFVMLIB = 6H; IDFVMLIB = 7H; IDENT = 8H; FVMFILE = 9H; PREPAGE = 0AH; DYSYMTAB = 0BH; LOADDYLIB = 0CH;
-    IDDYLIB = 0DH; LOADDYLINKER = 0EH; IDDYLINKER = 0FH; PREBOUNDDYLIB = 10H; ROUTINES = 11H; SUBFRAMEWORK = 12H;
-    SUBUMBRELLA = 13H; SUBCLIENT = 14H; SUBLIBRARY = 15H; TWOLEVELHINTS = 16H; PREBINDCKSUM = 17H; LOADWEAKDYLIB = 18H;
-    SEGMENT64 = 19H; ROUTINES64 = 1AH; UUID = 1BH; RPATH = 1CH + REQDYLD; CODESIGNATURE = 1DH; SEGMENTSPLITINFO = 1EH;
-    REEXPORTDYLIB = 1FH + REQDYLD; LAZYLOADDYLIB = 20H; ENCRYPTIONINFO = 21H; DYLDINFO = 22H; DYLDINFOONLY = 22H + REQDYLD; 
 
   TYPE
 
@@ -176,21 +170,23 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     INC(i);                                                              
     END;                                                                 
                                                                          
-    (* PROGRAM *)                                                       
-    WR( R, 2222222211111111H );         (*                   D2800000D2800070 *) 
-    WR( R, 4444444433333333H );         (*                   B0000001D2800282 *)  
-    WR( R,0D2800030D2800540H );         (*                   D400000191000021 *)  
-    WR( R, 00000001D4001001H );         (*                   D2800020D2800090 *)  
-    WR( R, 000000000000001CH );         (*                   91000021B0000001 *)  
-    WR( R, 000000000000001CH );         (*                   D2800000D4000001 *)  
-    WR( R, 000000020000001CH );         (*                   D4000001D2800030 *)  
-    WR( R, 0000003400003F90H );         (*                   0000001C00000001 *)  
-    WR( R, 00003FAD00000034H );         (*                   0000001C00000000 *)  
+    (* PROGRAM                             3F80H             D2800000D2800070 *)         
+(* 3F90H                                                     B0000001D2800282 *)
+    WR( R, 2222222211111111H );         (*                   D400000191000021 *) 
+    WR( R, 4444444433333333H );         (*                   D2800020D2800090 *)  
+    WR( R,0D2800030D2800540H );         (*                   91000021B0000001 *)  
+    WR( R, 00000001D4001001H );         (*                   D2800000D4000001 *)  
+    WR( R, 000000000000001CH );         (*                   D4000001D2800030 *)  
+    WR( R, 000000000000001CH );         (*                   0000001C00000001 *)  
+    WR( R, 000000020000001CH );         (*                   0000001C00000000 *)  
+    WR( R, 0000003400003F90H );         (*                                    *)
+    WR( R, 00003FAD00000034H );         (*                                    *)
     WR( R, 0000003400000000H );         (*                  *                 *) 
     WR( R, 0001000C00000003H );         (*                   00003F8000000002 *) 
     WR( R, 0000000000010010H );         (*                   0000003400000034 *) 
     WR( R, 0000000000000000H );         (*                   0000000000003FB9 *) 
     WR( R, 0000000000000000H );         (*                   0000000300000034 *) 
+(* 4000H *)
     WR( R, 0000002000000000H );         (*                   000100100001000C *) 
     WR( R, 0000003000000030H );         (*                   0000000000000000 *) 
     WR( R, 0000000100000000H );         (*                  *                 *) 
