@@ -155,7 +155,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
   END ExitCode;
 
   PROCEDURE Write*(VAR R: Files.Rider; Code, Data: OAB.Bin; CodeLimit, DataLimit, ProgramEntry: INTEGER);
-    VAR i,v,x,b: INTEGER;
+    VAR i,b: INTEGER;
   BEGIN
 
 

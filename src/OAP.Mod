@@ -1,5 +1,5 @@
 MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit in Oberon-07*)
-  IMPORT Out, Texts, OAL, OAS, OAB, OAG;
+  IMPORT Out, Texts, OAS, OAB, OAL, OAG;
   (*Author: Niklaus Wirth, 2014.
     Parser of Oberon compiler. Uses Scanner OAS to obtain symbols (tokens),
     OAB for definition of data structures and for handling import and export, and

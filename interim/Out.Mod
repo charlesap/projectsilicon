@@ -12,6 +12,10 @@ MODULE Out;
   BEGIN
   END Int;
 
+  PROCEDURE Hex*(i: INTEGER);
+  BEGIN
+  END Hex;
+
 BEGIN 
 END Out.
 
