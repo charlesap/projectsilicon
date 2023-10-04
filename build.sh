@@ -12,7 +12,9 @@ echo
 echo
 echo "in interim"
 ../obnc/oac -ms E.Mod
+codesign -s - E.bin
 ../obnc/oac -ms M.Mod
+codesign -s - M.bin
 ../obnc/oac -s Out.Mod
 ../obnc/oac -s Files.Mod
 ../obnc/oac -s Fonts.Mod

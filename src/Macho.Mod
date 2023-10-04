@@ -90,10 +90,10 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
   PROCEDURE LoadDylinker(VAR R: Files.Rider);
   BEGIN
-    WR( R, 000000200000000EH ); (* cmdsize    / cmd          000000200000000E *)
-    WR( R, 7273752F0000000CH ); (*                           7273752F0000000C *)
-    WR( R, 6C79642F62696C2FH ); (*                           6C79642F62696C2F *)
-    WR( R, 0000000000000064H ); (*                           0000000000000064 *)
+    WR( R, 000000200000000EH );
+    WR( R, 7273752F0000000CH );
+    WR( R, 6C79642F62696C2FH );
+    WR( R, 0000000000000064H );
   END LoadDylinker;
 
   PROCEDURE ApplicationUUID(VAR R: Files.Rider; UUIDhi, UUIDlo: INTEGER);
@@ -136,147 +136,121 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
   END CodeSignature;
 
   PROCEDURE Write*(VAR R: Files.Rider; Code, Data: OAB.Bin; CodeLimit, DataLimit, ProgramEntry: INTEGER);
-    VAR i: INTEGER;
-  BEGIN              (*     exit                High Word / Low Word        inout         *)
-  
-    Header( R , 2E8H, 16 );                                                   (* ??, 17 *)
-    Segment( R, 0, "__PAGEZERO", 0, 100000000H, 0, 0, 0, 0 ); 
-    Segment( R, 2, "__TEXT", 100000000H, 4000H, 0, 4000H, 500000005H, 0 ); 
-    Section( R, "__text", "__TEXT",100003F90H,1CH,400003F90H,0,80000400H);    (* 100003F80H, 38H, 200003F80H, 0, 80000400H *)
-    Section( R, "__unwind_info", "__TEXT", 100003FACH, 48H, 200003FACH, 0, 0);(* 100003FB8H, 48H, 200003FB8H, 0, 0 *)
-(*  Segment( R, 1, "__DATA", 100004000H, 4000H, 0, 0, 300000003H, 1 ); 
-    Section( R, "__data", "__DATA", 100004000H, 28H, 400H, 0, 0);  *) 
-    Segment( R, 0, "__LINKEDIT", 100004000H, 4000H, 4000H, 1E1H, 100000001H, 0 ); (* 100008000H, 4000H, 8000H, 282H, 100000001H, 0 *)
-    Mysterious( R, TRUE, 34H, 38H, 4000H );        (* dyld_chained_fixups        38H, 8000H *)
-    Mysterious( R, TRUE, 33H, 38H, 4038H );        (* dyld_exports_trie          30H, 8038H *)
-    Symbols( R, 3, 4078H, 28H, 40A8H );                                       (* 5, 8070H, 30H, 80C0H *)
-    SymbolTableInfo( R, 0, 0, 3, 0, 0, 3 );                                   (* 3, 0, 2, 3, 0, 5 *)
+    VAR i,v,x,b: INTEGER;
+  BEGIN
+
+
+    b:=0C000H;
+
+
+    Header( R , 380H + (13H * 8), 18 ); 
+    Segment( R, 0, "__PAGEZERO", 0,           100000000H,     0,          0,     0, 0 ); 
+    Segment( R, 2, "__TEXT",                  100000000H, 4000H,          0, 4000H, 500000005H, 0 );
+    Section( R,    "__text", "__TEXT",        100003F90H,   1CH, 400003F90H,     0,  80000400H    );
+    Section( R,    "__unwind_info", "__TEXT", 100003FACH,   48H, 200003FACH,     0,         0     );
+    Segment( R, 1, "__D000",                  100004000H, 4000H,      4000H, 4000H, 300000003H, 0 );
+    Section( R,    "__d000", "__D000",        100004000H, 4000H,      4000H,     0,         0     );
+    Segment( R, 1, "__C000",                  100008000H, 4000H,      8000H, 4000H, 500000005H, 0 );
+    Section( R,    "__c000", "__C000",        100008000H, 4000H, 400008000H,     0,  80000400H    );
+
+    Segment( R, 0, "__LINKEDIT", b + 100000000H, 4000H, b, 1E1H, 100000001H, 0 );
+    Mysterious( R, TRUE, 34H, 38H, b );              (* dyld_chained_fixups  *)
+    Mysterious( R, TRUE, 33H, 38H, b + 38H );        (* dyld_exports_trie    *)
+    Symbols( R, 3, b + 78H, 28H, b + 0A8H );
+    SymbolTableInfo( R, 0, 0, 3, 0, 0, 3 );
     LoadDylinker( R );
-    ApplicationUUID( R, 0F931B7FDE38F91CCH, 239DEFA4E546FD8AH );              (* 0A23F6185A0BB867AH, 0FDECD0CFFC341DAAH *)
+    ApplicationUUID( R, 0F931B7FDE38F91CCH, 239DEFA4E546FD8AH );
     MinimumOS( R );
-    Mysterious( R, FALSE, 2AH, 0, 0 );      (* source version used to build binary 0, 0 *)
-    MainEntry( R, 3FA0H, 0 );                                                 (* 3F80H, 0 *)
+    Mysterious( R, FALSE, 2AH, 0, 0 );      (* source version used to build binary *)
+    MainEntry( R, 3FA0H, 0 );
     LinkLibSystem( R );
-    Mysterious( R, FALSE, 26H, 8H, 4070H ); (* compressed table of function start addresses 8H, 8068H *)
-    Mysterious( R, FALSE, 29H, 0, 4078H );  (* table of non-instructions in __text 0, 8070H *)
-    CodeSignature( R, 111H, 40D0H );                                          (* 192H, 80F0H *)
+    Mysterious( R, FALSE, 26H, 8H, b + 70H ); (* compressed table of function start addresses *)
+    Mysterious( R, FALSE, 29H, 0, b + 78H );  (* table of non-instructions in __text *)
+    CodeSignature( R, 111H, b + 0D0H );
 
 
 
                                                                                     
     (* PADDING *)                                                        
-    i:=0; WHILE i < 1937 DO                                              
+    i:=0; WHILE i < (1937 - (13H * 2))  DO                                              
     WR( R, 0000000000000000H ); (* padding                 *)
     INC(i);                                                              
     END;                                                                 
-                                                                         
-    (* PROGRAM                             3F80H             D2800000D2800070 *)         
-(* 3F90H                                                     B0000001D2800282 *)
-    WR( R, 2222222211111111H );         (*                   D400000191000021 *) 
-    WR( R, 4444444433333333H );         (*                   D2800020D2800090 *)  
-    WR( R,0D2800030D2800540H );         (*                   91000021B0000001 *)  
-    WR( R, 00000001D4001001H );         (*                   D2800000D4000001 *)  
-    WR( R, 000000000000001CH );         (*                   D4000001D2800030 *)  
-    WR( R, 000000000000001CH );         (*                   0000001C00000001 *)  
-    WR( R, 000000020000001CH );         (*                   0000001C00000000 *)  
-    WR( R, 0000003400003F90H );         (*                                    *)
-    WR( R, 00003FAD00000034H );         (*                                    *)
-    WR( R, 0000003400000000H );         (*                  *                 *) 
-    WR( R, 0001000C00000003H );         (*                   00003F8000000002 *) 
-    WR( R, 0000000000010010H );         (*                   0000003400000034 *) 
-    WR( R, 0000000000000000H );         (*                   0000000000003FB9 *) 
-    WR( R, 0000000000000000H );         (*                   0000000300000034 *) 
-(* 4000H *)
-    WR( R, 0000002000000000H );         (*                   000100100001000C *) 
-    WR( R, 0000003000000030H );         (*                   0000000000000000 *) 
-    WR( R, 0000000100000000H );         (*                  *                 *) 
-    WR( R, 0000000000000000H );         (*                   0000002000000000 *) 
-    WR( R, 0000000000000003H );         (*                   0000003400000034 *) 
-    WR( R, 0000000000000000H );         (*                   0000000100000000 *) 
-    WR( R, 0000000000000000H );         (*                   0000000000000000 *) 
-    WR( R, 00000209005F0100H );         (*                   0000000000000004 *) 
-    WR( R, 655F686D5F030000H );         (*                   0000000000000000 *) 
-    WR( R, 685F657475636578H );         (*                  *                 *) 
-    WR( R, 6405007265646165H );         (*                   00000209005F0100 *) 
-    WR( R, 69616D2B00617461H );         (*                   655F686D5F020000 *) 
-    WR( R, 007F90000330006EH );         (*                   685F657475636578 *) 
-    WR( R, 000000007FA00003H );         (*                   7305007265646165 *) 
-    WR( R, 0000000000107F90H );         (*                   0003260074726174 *) 
-    WR( R, 0010010F00000002H );         (*                   0000000000007F80 *) 
-    WR( R, 0000000100000000H );         (*                   0000000014187F80 *) 
-    WR( R, 0000010F00000016H );         (*                   0000010E0000001D *) 
-    WR( R, 0000000100003F90H );         (*                   0000000100003F98 *) 
-    WR( R, 0000010F0000001CH );         (*                   0000010E00000024 *) 
-    WR( R, 0000000100003FA0H );         (*                   0000000100003FAC *) 
-    WR( R, 655F686D5F5F0020H );         (*                   0000030E00000029 *) 
-    WR( R, 685F657475636578H );         (*                   0000000100004000 *) 
-    WR( R, 645F007265646165H );         (*                   0010010F00000002 *) 
-    WR( R, 69616D5F00617461H );         (*                   0000000100000000 *) 
-    WR( R, 000000000000006EH );         (*                   0000010F00000016 *) 
-    WR( R, 11010000C00CDEFAH );         (*                   0000000100003F80 *) 
-    WR( R, 0000000001000000H );         (*                   655F686D5F5F0020 *) 
-    WR( R, 020CDEFA14000000H );         (*                   685F657475636578 *) 
-    WR( R, 00040200FD000000H );         (*                   735F007265646165 *) 
-    WR( R, 5D00000002000200H );         (*                   72775F0074726174 *) 
-    WR( R, 0000000058000000H );         (*                   646E655F00657469 *) 
-    WR( R,0D040000005000000H );         (*                   0000000067736D00 *) 
-    WR( R, 000000000C000220H );         (*                   92010000C00CDEFA *) 
-    WR( R, 0000000000000000H );         (*                   0000000001000000 *) 
-    WR( R, 0000000000000000H );         (*                   020CDEFA14000000 *) 
-    WR( R, 0000000000000000H );         (*                   000402007E010000 *) 
-    WR( R, 0000000000000000H );         (*                   5E00000002000200 *) 
-    WR( R, 0000000000400000H );         (*                   0000000058000000 *) 
-    WR( R, 7469786501000000H );         (*                   F080000009000000 *) 
-    WR( R,0E44ED3E1DFC4A100H );         (*                   000000000C000220 *) 
-    WR( R, 1E42D7D51C8BCABDH );         (*                   0000000000000000 *) 
-    WR( R, 27ED0494BF1E607EH );         (*                  *                 *) 
-    WR( R,0CF8C3007AF6DF0EAH );         (*                   0000000000400000 *) 
-    WR( R,0C66F58B2AC7FADDBH );         (*                   756F6E6901000000 *) 
-    WR( R, 6BD1D1D704C066E9H );         (*                   7A8DCA0D30250074 *)
-    WR( R, 7CB47CFF05584F02H );         (*                   28224F373E4D6C93 *)
-    WR( R, 2C89488BBDDA857AH );         (*                   97BB757A0B49192E *)
-    WR( R,0C66F58B2AC7FADA7H );         (*                   BD5B96E17C12B559 *)
-    WR( R, 6BD1D1D704C066E9H );         (*                   6F58B2AC7FADB827 *)
-    WR( R, 7CB47CFF05584F02H );         (*                   D1D1D704C066E9C6 *)
-    WR( R, 2C89488BBDDA857AH );         (*                   B47CFF05584F026B *)
-    WR( R, 4F71619F59E5D3A7H );         (*                   89488BBDDA857A7C *)
-    WR( R,0AF0F3CF18BA3B5B9H );         (*                   6F58B2AC7FADA72C *)
-    WR( R, 856800CC336928C8H );         (*                   D1D1D704C066E9C6 *)
-    WR( R,0D974C511725ECD2AH );         (*                   B47CFF05584F026B *)
-    WR( R, 1AB8F5E7290BFBF8H );         (*                   89488BBDDA857A7C *)
-    WR( R,0D1DD033EB3E09DE0H );         (*                   108C61B5FFC2A72C *)
-    WR( R, 97350ADD9EE6EBF5H );         (*                   3F7929C5FA570DBD *)
-    WR( R,0E6B960A1A0A512BDH );         (*                   C24D67B6D10C076A *)
-    Files.Write( R, 0DDH );                         (*                   666F1825BA72E918 *)
-                                                    (*                   6F58B2AC7FADB2AB *)
-                                                    (*                   D1D1D704C066E9C6 *)
-                                                    (*                   B47CFF05584F026B *)
-                                                    (*                   89488BBDDA857A7C *)
-                                                    (*                   6F58B2AC7FADA72C *)
-                                                    (*                   D1D1D704C066E9C6 *)
-                                                    (*                   B47CFF05584F026B *)
-                                                    (*                   89488BBDDA857A7C *)
-                                                    (*                   6F58B2AC7FADA72C *)
-                                                    (*                   D1D1D704C066E9C6 *)
-                                                    (*                   B47CFF05584F026B *)
-                                                    (*                   89488BBDDA857A7C *)
-                                                    (*                   6F58B2AC7FADA72C *)
-                                                    (*                   D1D1D704C066E9C6 *)
-                                                    (*                   B47CFF05584F026B *)
-                                                    (*                   89488BBDDA857A7C *)
-                                                    (*                   97F09ADDC8D3A72C *)
-                                                    (*                   FE3B9F09B741C0F3 *)
-                                                    (*                   696F9C29358E8669 *)
-                                                    (*                   95822BE6CE4F59D4 *)
-                                                    (*                   000000000000084D *)
-                                                                                          
-                                                                                          
-                                                                                          
-                                                    
+                                
+    i:=0;   
+    x:=SYSTEM.VAL(INTEGER,Code);
+    WHILE i < CodeLimit DO SYSTEM.GET(x+i,v); WR( R, v ); INC(i,8) END; 
+                                      
+    (* PADDING *)                                                        
+    i:=0; WHILE i < (8000H DIV 8)  DO                                              
+    WR( R, 0000000000000000H ); (* padding                 *)
+    INC(i);                                                              
+    END;                                                                 
+                                
+    (* misc bookkeeping to satisfy the loader *)
 
-
-
-
+    WR( R, 0000002000000000H );
+    WR( R, 0000003000000030H );
+    WR( R, 0000000100000000H );
+    WR( R, 0000000000000000H );
+    WR( R, 0000000000000003H );
+    WR( R, 0000000000000000H );
+    WR( R, 0000000000000000H );
+    WR( R, 00000209005F0100H );
+    WR( R, 655F686D5F030000H );
+    WR( R, 685F657475636578H );
+    WR( R, 6405007265646165H );
+    WR( R, 69616D2B00617461H );
+    WR( R, 007F90000330006EH );
+    WR( R, 000000007FA00003H );
+    WR( R, 0000000000107F90H );
+    WR( R, 0010010F00000002H );
+    WR( R, 0000000100000000H );
+    WR( R, 0000010F00000016H );
+    WR( R, 0000000100003F90H );
+    WR( R, 0000010F0000001CH );
+    WR( R, 0000000100003FA0H );
+    WR( R, 655F686D5F5F0020H );
+    WR( R, 685F657475636578H );
+    WR( R, 645F007265646165H );
+    WR( R, 69616D5F00617461H );
+    WR( R, 000000000000006EH );
+    WR( R, 11010000C00CDEFAH );
+    WR( R, 0000000001000000H );
+    WR( R, 020CDEFA14000000H );
+    WR( R, 00040200FD000000H );
+    WR( R, 5D00000002000200H );
+    WR( R, 0000000058000000H );
+    WR( R,0D040000005000000H );
+    WR( R, 000000000C000220H );
+    WR( R, 0000000000000000H );
+    WR( R, 0000000000000000H );
+    WR( R, 0000000000000000H );
+    WR( R, 0000000000000000H );
+    WR( R, 0000000000400000H );
+    WR( R, 7469786501000000H );
+    WR( R,0E44ED3E1DFC4A100H );
+    WR( R, 1E42D7D51C8BCABDH );
+    WR( R, 27ED0494BF1E607EH );
+    WR( R,0CF8C3007AF6DF0EAH );
+    WR( R,0C66F58B2AC7FADDBH );
+    WR( R, 6BD1D1D704C066E9H );
+    WR( R, 7CB47CFF05584F02H );
+    WR( R, 2C89488BBDDA857AH );
+    WR( R,0C66F58B2AC7FADA7H );
+    WR( R, 6BD1D1D704C066E9H );
+    WR( R, 7CB47CFF05584F02H );
+    WR( R, 2C89488BBDDA857AH );
+    WR( R, 4F71619F59E5D3A7H );
+    WR( R,0AF0F3CF18BA3B5B9H );
+    WR( R, 856800CC336928C8H );
+    WR( R,0D974C511725ECD2AH );
+    WR( R, 1AB8F5E7290BFBF8H );
+    WR( R,0D1DD033EB3E09DE0H );
+    WR( R, 97350ADD9EE6EBF5H );
+    WR( R,0E6B960A1A0A512BDH );
+    Files.Write( R, 0DDH );    
+                               
   END Write;
  
 

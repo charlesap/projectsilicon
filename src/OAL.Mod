@@ -360,6 +360,26 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           F := Files.New(fname); 
           Files.Set(R, F, 0);
 
+                            (* PROGRAM                            3F80H             D2800000D2800070 *)
+                        (* 3F90H                                                    B0000001D2800282 *)
+          i:=SYSTEM.VAL(INTEGER,Code);
+          SYSTEM.PUT( i, 2222222211111111H );INC(i,8);         (*                   D400000191000021 *)
+          SYSTEM.PUT( i, 4444444433333333H );INC(i,8);         (*                   D2800020D2800090 *)
+          SYSTEM.PUT( i,0D2800030D2800540H );INC(i,8);         (*                   91000021B0000001 *)
+          SYSTEM.PUT( i, 00000001D4001001H );INC(i,8);         (*                   D2800000D4000001 *)
+          SYSTEM.PUT( i, 000000000000001CH );INC(i,8);         (*                   D4000001D2800030 *)
+          SYSTEM.PUT( i, 000000000000001CH );INC(i,8);         (*                   0000001C00000001 *)
+          SYSTEM.PUT( i, 000000020000001CH );INC(i,8);         (*                   0000001C00000000 *)
+          SYSTEM.PUT( i, 0000003400003F90H );INC(i,8);         (*                                    *)
+          SYSTEM.PUT( i, 00003FAD00000034H );INC(i,8);         (*                   00003F8000000002 *)
+          SYSTEM.PUT( i, 0000003400000000H );INC(i,8);         (*                   0000003400000034 *) 
+          SYSTEM.PUT( i, 0001000C00000003H );INC(i,8);         (*                   0000000000003FB9 *)
+          SYSTEM.PUT( i, 0000000000010010H );INC(i,8);         (*                   0000000300000034 *)
+          SYSTEM.PUT( i, 0000000000000000H );INC(i,8);         (*                   000100100001000C *)
+          SYSTEM.PUT( i, 0000000000000000H );INC(i,8);         (*                   0000000000000000 *)
+          CodeEnd := i - binStart;
+
+
           IF format = OAB.BIN   THEN BinPrefix END;
           IF format = OAB.RSC64 THEN RscPrefix END;
           IF format = OAB.ELF64 THEN ElfPrefix END;
