@@ -135,6 +135,25 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     WR( R, p1 * 100000000H + p2 );
   END CodeSignature;
 
+
+  PROCEDURE ExitCode(VAR R: Files.Rider);
+  BEGIN
+          WR( R, 2222222211111111H );
+          WR( R, 4444444433333333H );
+          WR( R,0D2800030D2800540H );
+          WR( R, 00000001D4001001H );
+          WR( R, 000000000000001CH );
+          WR( R, 000000000000001CH );
+          WR( R, 000000020000001CH );
+          WR( R, 0000003400003F90H );
+          WR( R, 00003FAD00000034H );
+          WR( R, 0000003400000000H );
+          WR( R, 0001000C00000003H );
+          WR( R, 0000000000010010H );
+          WR( R, 0000000000000000H );
+          WR( R, 0000000000000000H );
+  END ExitCode;
+
   PROCEDURE Write*(VAR R: Files.Rider; Code, Data: OAB.Bin; CodeLimit, DataLimit, ProgramEntry: INTEGER);
     VAR i,v,x,b: INTEGER;
   BEGIN
@@ -177,9 +196,13 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     INC(i);                                                              
     END;                                                                 
                                 
+    ExitCode( R );
+
+(*
     i:=0;   
     x:=SYSTEM.VAL(INTEGER,Code);
     WHILE i < CodeLimit DO SYSTEM.GET(x+i,v); WR( R, v ); INC(i,8) END; 
+*)
                                       
     (* PADDING *)                                                        
     i:=0; WHILE i < (8000H DIV 8)  DO                                              
