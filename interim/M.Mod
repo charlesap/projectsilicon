@@ -12,7 +12,11 @@ MODULE M;
  PROCEDURE Q(VAR x, y: INTEGER);
  VAR z: INTEGER;
  BEGIN z := x; x := y; y := z
- END Q;
-BEGIN a := F(35, 21); Q(a, b)
+ END Q
+ PROCEDURE C*;
+ BEGIN
+   INC(z,1)
+ END C;
+BEGIN a := F(35, 21); Q(a, b); C
 END M.
  

@@ -88,14 +88,15 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
       F: Files.File; R: Files.Rider;
       import: ARRAY 16 OF Module;
       ok: BOOLEAN;
-  BEGIN
+  BEGIN 
+    ok:=TRUE;
     mod := binroot; res := 0; nofimps := 0;
     WHILE (mod # NIL) & (name # mod.name) DO mod := mod.next END ;
     IF mod = NIL THEN 
       OAB.MakeFileName(fname, name, ".a64");
       F := Files.Old(fname); 
       IF F # NIL THEN
-        Files.Set(R, F, 0); 
+        Files.Set(R, F, 0);
         flen := Files.Length(F);
         Files.ReadString(R, name1);
         Files.ReadInt(R, key); Files.Read(R, b); ch:=CHR(b); Files.ReadInt(R, size);
@@ -109,7 +110,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
             importing := name1;
             IF res = 0 THEN
               IF impmod.key = impkey THEN INC(impmod.refcnt); INC(nofimps)
-              ELSE error(3, name1); imported := impname
+              ELSE ok:=FALSE; error(3, name1); imported := impname
               END
             END ;  
             zero(impname);
@@ -117,70 +118,89 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           END
         ELSE
           Emit(" version key mismatch"); Out.Int( b, 4 ); Emit(" vs"); Out.Int( ORD(versionkey), 4 ); Emit(" ");
-          error(2, name1) 
+          ok:=FALSE; error(2, name1) 
         END ;
-        Emit(" "); Emit(name1);
-      ELSE  error(1, name1) 
+      ELSE  ok:=FALSE; error(1, name1) 
       END ;
-      IF res = 0 THEN 
+      Emit("   |    Loading: ");Emit(fname);EmitLn;
+      Emit("   |       Size: ");Out.Int(flen,16);EmitLn;
+      Emit("   |       Name: ");Emit(name1);EmitLn;
+      Emit("   |        Key: ");Out.Int(key,16);EmitLn;
+      Emit("   | Versionkey: ");Out.Int(b,16);EmitLn;
+      Emit("   |   CodeSize: ");Out.Int(size,16);EmitLn;
+      IF ok THEN 
         INC(size, DescSize);
         IF binAllocPtr + size < limit THEN (*allocate*)
-            p:= binAllocPtr;
-            i:=p; WHILE i < ((p + size + 100H) DIV 20H * 20H)  DO SYSTEM.PUT( i, 0); INC(i,4) END;
+            p:= binAllocPtr; 
+            i:=p; WHILE i < ((p + size + 200H) DIV 20H * 20H)  DO SYSTEM.PUT( i, 0); INC(i,8) END;
             mod := SYSTEM.VAL(Module, p);
-            SYSTEM.PUT( SYSTEM.ADR(binAllocPtr), (p + size + 100H) DIV 20H * 20H); 
+            SYSTEM.PUT( SYSTEM.ADR(binAllocPtr), (p + size + 200H) DIV 20H * 20H); 
             mod.size := binAllocPtr - p; 
             IF binroot # NIL THEN  mod.num := binroot.num + 1
             ELSE mod.num := 1
             END;
-            mod.next := binroot; binroot := mod
-        ELSE error(7, name1)
+            mod.next := binroot; binroot := mod;
+            Emit("   |    ModSize: ");Out.Int(mod.size,16);EmitLn
+        ELSE ok:=FALSE; error(7, name1)
         END
       END ; 
-      IF res = 0 THEN (*read file*)
+      IF ok THEN (*read file*)
         INC(p, DescSize); (*allocate descriptor*)
         zero(mod.name);
         mod.name := name; 
         mod.key := key; mod.refcnt := 0;
         mod.data := p;  (*data*)
-        SYSTEM.PUT(mod.num * 4 + binMTOrg, p );  (*module table entry*)
+        SYSTEM.PUT(mod.num * 8 + binMTOrg, p );  (*module table entry*)
         Files.ReadInt(R, n);
-        WHILE n > 0 DO Files.ReadInt(R, w);  SYSTEM.PUT(p, w);  INC(p, 4); DEC(n, 4) END ; (*type descriptors*)
+        Emit("   |    TDBytes: ");Out.Int(n,16);EmitLn;
+        WHILE n > 0 DO Files.ReadInt(R, w);  SYSTEM.PUT(p, w);  INC(p, 8); DEC(n, 8) END ; (*type descriptors*)
         Files.ReadInt(R, n);
-        WHILE n > 0 DO SYSTEM.PUT(p, 0); INC(p, 4); DEC(n, 4) END ;  (*variable space*)
+        Emit("   |   VarBytes: ");Out.Int(n,16);EmitLn;
+        WHILE n > 0 DO SYSTEM.PUT(p, 0); INC(p, 8); DEC(n, 8) END ;  (*variable space*)
         Files.ReadInt(R, n);
+        Emit("   |StringBytes: ");Out.Int(n,16);EmitLn;
         WHILE n > 0 DO Files.Read(R, b); ch:=CHR(b); SYSTEM.PUT(p, ch); INC(p); DEC(n) END ;   (*strings*)
         mod.code := p;  (*program*)
         Files.ReadInt(R, n);
-        WHILE n > 0 DO Files.ReadInt(R, w); SYSTEM.PUT(p, w); INC(p, 4); DEC(n) END ;  (*program code*)
+        Emit("   |  CodeWords: ");Out.Int(n,16);EmitLn;
+        WHILE n > 0 DO Files.ReadInt(R, w); SYSTEM.PUT(p, w); INC(p, 8); DEC(n) END ;  (*program code*)
         mod.imp := p;  (*copy imports*)
         i := 0;
         WHILE i < nofimps DO
           xmod:=import[i]; (*should go in SYSTEM.PUT *)
-          SYSTEM.PUT(p, 0); INC(p, 4); INC(i)                                                                   
+          SYSTEM.PUT(p, 0); INC(p, 8); INC(i)                                                                   
         END ;
         mod.cmd := p;  (*commands*) 
         Files.Read(R, b); ch:=CHR(b);
         WHILE ch # 0X DO
-          b:=ORD(ch);REPEAT SYSTEM.PUT(p, b); INC(p); Files.Read(R, b); ch:=CHR(b) UNTIL ch = 0X;
-          REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 4 = 0;
-          Files.ReadInt(R, n); SYSTEM.PUT(p, n); INC(p, 4); Files.Read(R, b); ch:=CHR(b)
+          Emit("   |    Command: ");
+          b:=ORD(ch); Out.Char(ch); REPEAT SYSTEM.PUT(p, b); INC(p); Files.Read(R, b); ch:=CHR(b) UNTIL ch = 0X;EmitLn;
+          REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 8 = 0;
+          Files.ReadInt(R, n); SYSTEM.PUT(p, n); INC(p, 8); Files.Read(R, b); ch:=CHR(b);
+          Emit("   |         At: ");Out.Int(n,16);EmitLn
         END ;
-        REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 4 = 0;
+        REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 8 = 0;
         mod.ent := p; (*entries*)
         Files.ReadInt(R, n);
-        WHILE n > 0 DO Files.ReadInt(R, w); SYSTEM.PUT(p, w); INC(p, 4); DEC(n) END ;
+        Emit("   |    Entries: ");Out.Int(n,16);EmitLn;
+        WHILE n > 0 DO Files.ReadInt(R, w); SYSTEM.PUT(p, w); INC(p, 8); DEC(n) END ;
         mod.ptr := p; (*pointer references*)
         Files.ReadInt(R, w);
-        WHILE (w >= 0) & (~R.eof) DO SYSTEM.PUT(p, mod.data + w - binStart ); INC(p, 4); Files.ReadInt(R, w) END ;
-        SYSTEM.PUT(p, 0); INC(p, 4);
+        Emit("   |      PRefs: ");Out.Int(w,16);EmitLn;
+        WHILE (w >= 0) & (~R.eof) DO SYSTEM.PUT(p, mod.data + w - binStart ); INC(p, 8); Files.ReadInt(R, w) END ;
+        SYSTEM.PUT(p, 0); INC(p, 8);
         Files.ReadInt(R, fixorgP); Files.ReadInt(R, fixorgD); Files.ReadInt(R, fixorgT);
+        Emit("   |    fixorgP: ");Out.Int(fixorgP,16);EmitLn;
+        Emit("   |    fixorgD: ");Out.Int(fixorgD,16);EmitLn;
+        Emit("   |    fixorgT: ");Out.Int(fixorgT,16);EmitLn;
         Files.ReadInt(R, w); body := SYSTEM.VAL(Command, mod.code + w - binStart );
+        Emit("   |       Body: ");Out.Int(w,16);EmitLn;
         Files.Read(R, b); ch:=CHR(b);
-        IF ch # "O" THEN (*corrupted file*)  mod := NIL (* ; error(4, name) *) END
+        Emit("   |        Tag: ");Out.Char(ch);EmitLn;
+        IF ch # "O" THEN (*corrupted file*)  mod := NIL (* ; ok:=FALSE; error(4, name) *) END
       END ;
       IF res = 0 THEN (*fixup of BL*)
-        adr := mod.code + fixorgP*4;
+        adr := mod.code + fixorgP*8;
 (*
         WHILE adr # mod.code DO
           SYSTEM.GET(adr, inst);
@@ -245,8 +265,8 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   PROCEDURE Link*(name: ARRAY OF CHAR; format: INTEGER);
 
     VAR
-      Code,Data: OAB.Bin;
-      CodeEnd,DataEnd,ProgEntry: INTEGER;
+      Data,Code: OAB.Bin;
+      DataEnd,CodeEnd,ProgEntry: INTEGER;
       Lname : ModuleName;
       fname: OAS.Ident;
       F: Files.File;  R: Files.Rider;
@@ -256,10 +276,10 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   BEGIN 
     NEW(Code); NEW(Data);
 
-    binStart := SYSTEM.VAL(INTEGER,Code); binMTOrg := binStart + 64; binroot := NIL; res:= 0;
+    binStart := SYSTEM.VAL(INTEGER,Data); binMTOrg := binStart + 128; binroot := NIL; res:= 0;
     limit:= binStart + SYSTEM.SIZE(OAB.BinDesc); 
     binAllocPtr :=  binStart+ 512;
-    i:= 0; WHILE i < 512+128 DO SYSTEM.PUT(binStart+i, 0 ); INC(i,8) END;   
+    i:= 0; WHILE i < 4096 DO SYSTEM.PUT(binStart+i, 0 ); INC(i,8) END;   
     ok := LinkOne( name , M, Code, Data, CodeEnd, DataEnd, ProgEntry );
     IF ok THEN
       SYSTEM.PUT(binStart + 40,SYSTEM.VAL(INTEGER,binroot) - binStart );
