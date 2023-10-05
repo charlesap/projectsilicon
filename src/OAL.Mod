@@ -74,7 +74,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
     EmitLn;  
   END ck;
 
-  PROCEDURE LinkOne*(name: ARRAY OF CHAR; VAR newmod: Module;VAR Code, Data: OAB.Bin;VAR  CodeEnd, DataEnd, ProgEntry: INTEGER): BOOLEAN;
+  PROCEDURE LinkOne*(name: ARRAY OF CHAR; VAR newmod: Module;VAR Image: OAB.Bin;VAR  DataStart, DataEnd, CodeEnd, ProgEntry: INTEGER): BOOLEAN;
     VAR mod, impmod, xmod: Module;
       i, n, key, impkey, mno, nofimps, size, flen: INTEGER;
       p, u, v, w: INTEGER;  (*addresses*)
@@ -105,7 +105,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
           Files.ReadString(R, impname);   (*imports*)
           WHILE (impname[0] # 0X) & (res = 0) DO
             Files.ReadInt(R, impkey);
-            ok := LinkOne(impname, impmod, Code, Data, CodeEnd, DataEnd, ProgEntry);
+            ok := LinkOne(impname, impmod, Image, DataStart, DataEnd, CodeEnd, ProgEntry);
             import[nofimps] := impmod;
             importing := name1;
             IF res = 0 THEN
@@ -134,7 +134,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
             p:= binAllocPtr; 
             i:=p; WHILE i < ((p + size + 200H) DIV 20H * 20H)  DO SYSTEM.PUT( i, 0); INC(i,8) END;
             mod := SYSTEM.VAL(Module, p);
-            SYSTEM.PUT( SYSTEM.ADR(binAllocPtr), (p + size + 200H) DIV 20H * 20H); 
+            SYSTEM.PUT( SYSTEM.ADR(binAllocPtr), (p + size + 200H) DIV 20H * 20H); (* for the next module *)
             mod.size := binAllocPtr - p; 
             IF binroot # NIL THEN  mod.num := binroot.num + 1
             ELSE mod.num := 1
@@ -145,7 +145,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
         END
       END ; 
       IF ok THEN (*read file*)
-        INC(p, DescSize); (*allocate descriptor*)
+        INC(p, DescSize); (*jump over module descriptor*)
         zero(mod.name);
         mod.name := name; 
         mod.key := key; mod.refcnt := 0;
@@ -163,7 +163,11 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
         mod.code := p;  (*program*)
         Files.ReadInt(R, n);
         Emit("   |  CodeWords: ");Out.Int(n,16);EmitLn;
+        DataEnd := p - SYSTEM.VAL(INTEGER,Image);
         WHILE n > 0 DO Files.ReadInt(R, w); SYSTEM.PUT(p, w); INC(p, 8); DEC(n) END ;  (*program code*)
+        CodeEnd := p - SYSTEM.VAL(INTEGER,Image);
+        Emit("   |    DataEnd: ");Out.Int(DataEnd,16);EmitLn;
+        Emit("   |    CodeEnd: ");Out.Int(CodeEnd,16);EmitLn;
         mod.imp := p;  (*copy imports*)
         i := 0;
         WHILE i < nofimps DO
@@ -265,8 +269,8 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
   PROCEDURE Link*(name: ARRAY OF CHAR; format: INTEGER);
 
     VAR
-      Data,Code: OAB.Bin;
-      DataEnd,CodeEnd,ProgEntry: INTEGER;
+      Image: OAB.Bin;
+      DataStart,DataEnd,CodeEnd,ProgEntry: INTEGER;
       Lname : ModuleName;
       fname: OAS.Ident;
       F: Files.File;  R: Files.Rider;
@@ -274,13 +278,13 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
       i,v : INTEGER;
       ok: BOOLEAN;
   BEGIN 
-    NEW(Code); NEW(Data);
+    NEW(Image);
 
-    binStart := SYSTEM.VAL(INTEGER,Data); binMTOrg := binStart + 128; binroot := NIL; res:= 0;
+    binStart := SYSTEM.VAL(INTEGER,Image); binMTOrg := binStart + 128; binroot := NIL; res:= 0;
     limit:= binStart + SYSTEM.SIZE(OAB.BinDesc); 
     binAllocPtr :=  binStart+ 512;
     i:= 0; WHILE i < 4096 DO SYSTEM.PUT(binStart+i, 0 ); INC(i,8) END;   
-    ok := LinkOne( name , M, Code, Data, CodeEnd, DataEnd, ProgEntry );
+    ok := LinkOne( name , M, Image, DataStart, DataEnd, CodeEnd, ProgEntry );
     IF ok THEN
       SYSTEM.PUT(binStart + 40,SYSTEM.VAL(INTEGER,binroot) - binStart );
       SYSTEM.PUT(binStart + 504, 1234567887654321H );           (* A fingerprint *)
@@ -291,14 +295,14 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
       F := Files.New(fname); 
       Files.Set(R, F, 0);
 
-      i:=SYSTEM.VAL(INTEGER,Code);
+      i:=SYSTEM.VAL(INTEGER,Image);
       CodeEnd := i - binStart;
 
 
       IF format = OAB.BIN   THEN  END;
       IF format = OAB.RSC64 THEN  END;
       IF format = OAB.ELF64 THEN  END;
-      IF format = OAB.MACHO THEN Macho.Write( R , Code, Data, CodeEnd, DataEnd, ProgEntry ) END;
+      IF format = OAB.MACHO THEN Macho.Write( R , Image, DataStart, DataEnd, CodeEnd, ProgEntry ) END;
       IF format = OAB.PE64  THEN  END;
 
 (*
