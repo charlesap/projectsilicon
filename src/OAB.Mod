@@ -48,8 +48,13 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
       size*: INTEGER  (*in bytes; always multiple of 4, except for Byte, Bool and Char*)
     END ;
 
-    Bin* = POINTER TO BinDesc;
-    BinDesc* = RECORD
+    Kbin* = POINTER TO KbinDesc;
+    KbinDesc* = RECORD
+        bytes*: ARRAY 1024*16 OF BYTE
+    END ;
+
+    Mbin* = POINTER TO MbinDesc;
+    MbinDesc* = RECORD
         bytes*: ARRAY 1024*1024*16 OF BYTE
     END ;
 

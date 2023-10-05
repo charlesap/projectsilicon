@@ -154,7 +154,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
           WR( R, 0000000000000000H );
   END ExitCode;
 
-  PROCEDURE Write*(VAR R: Files.Rider; Image: OAB.Bin; DataStart, DataEnd, CodeEnd, ProgramEntry: INTEGER);
+  PROCEDURE Write*(VAR R: Files.Rider; K: OAB.Kbin; I: OAB.Mbin; DataStart, DataEnd, CodeEnd, ProgramEntry: INTEGER);
     VAR i,b: INTEGER;
   BEGIN
 
@@ -205,9 +205,21 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     x:=SYSTEM.VAL(INTEGER,Code);
     WHILE i < CodeLimit DO SYSTEM.GET(x+i,v); WR( R, v ); INC(i,8) END; 
 *)
-                                      
-    (* PADDING *)                                                        
-    i:=0; WHILE i < (0C000H DIV 8)  DO                                              
+    
+    (* global elements *)                                  
+    i:=0; WHILE i < (04000H DIV 8)  DO                                              
+    WR( R, 0FFFFFFFFFFFFFFFFH ); (* padding                 *)
+    INC(i);                                                              
+    END;            
+                                                     
+    (* module data *)                                                        
+    WHILE i < (08000H DIV 8)  DO                                              
+    WR( R, 0AAAAAAAAAAAAAAAAH ); (* padding                 *)
+    INC(i);                                                              
+    END;                                                                 
+                                
+    (* module code *)                                                        
+    WHILE i < (0C000H DIV 8)  DO                                              
     WR( R, 0000000000000000H ); (* padding                 *)
     INC(i);                                                              
     END;                                                                 
