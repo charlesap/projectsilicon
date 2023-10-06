@@ -6,7 +6,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
 
   CONST WordSize* = 8;
     StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*)
-    MT = 12; SP = 14; LNK = 15;   (*dedicated registers*)
+    MT = 12; SP = 14; LNK = 30; (*LNK = 15;*)   (*dedicated registers*)
     maxCode = 240000; maxStrx = 2400; maxTD = 640; C24 = 1000000H;
     Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)
 
@@ -126,6 +126,22 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN (*emit branch instruction*)
     PutCode( pc, ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H)); INC(pc)
   END Put3;
+
+  PROCEDURE APut3(op, cond, off: INTEGER);
+    VAR ok: BOOLEAN;
+  BEGIN (*emit branch instruction*)
+    ok:= FALSE;
+    IF ((op = BR) & (cond = 7)) THEN (* return from procedure or interrupt *)
+      PutCode( pc, 0D65F0000H + (off *20H )); ok:= TRUE; INC(pc)
+    END;
+    IF op = BLR THEN END;
+    IF op = BC  THEN END;
+    IF op = BL  THEN END;
+
+    IF ok = FALSE THEN
+      PutCode( pc, 77777777H); INC(pc)
+    END
+  END APut3;
 
   PROCEDURE incR;
   BEGIN
@@ -858,11 +874,13 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE Return*(form: INTEGER; VAR x: Item; size: INTEGER; int: BOOLEAN);
   BEGIN
     IF form # OAB.NoTyp THEN load(x) END ;
-    IF ~int THEN (*procedure epilog*)
-      Put2(Ldr, LNK, SP, 0); Put1(Add, SP, SP, size); Put3(BR, 7, LNK)
+    IF ~int THEN (*procedure epilog*) (*
+      Put2(Ldr, LNK, SP, 0);
+      Put1(Add, SP, SP, size);    *)
+      APut3(BR, 7, LNK)
     ELSE (*interrupt return, restore R2, R1, R0*)
       Put2(Ldr, 2, SP, 8); Put2(Ldr, 1, SP, 4); Put2(Ldr, 0, SP, 0); Put1(Add, SP, SP, size);
-      Put3(BR, 7, 10H) (*RTI*)
+      APut3(BR, 7, 10H) (*RTI*)
     END ;
     RH := 0
   END Return;
@@ -1099,8 +1117,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
     IF verbose THEN EmitLn; Emit("Writing object file"); EmitLn; END;
-    IF version = 0 THEN Put1(Mov, 0, 0, 0); Put3(BR, 7, 0)  (*RISC-0*)
-    ELSE Put2(Ldr, LNK, SP, 0); Put1(Add, SP, SP, 4); Put3(BR, 7, LNK)
+    IF version = 0 THEN Put1(Mov, 0, 0, 0); APut3(BR, 7, 0)  (*RISC-0*)
+    ELSE Put2(Ldr, LNK, SP, 0); Put1(Add, SP, SP, 4); APut3(BR, 7, LNK)
     END ;
     obj := OAB.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
     WHILE obj # NIL DO
