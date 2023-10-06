@@ -1,26 +1,25 @@
-MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2021*)
+MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   IMPORT SYSTEM, Out, Files, OAS, OAB, Macho;
 
   CONST
- 
-     versionkey = 1X; MT = 12; DescSize = 128;
+    versionkey = 1X;
+    MT = 12;
+    DescSize = 128;
 
   TYPE
     Module = POINTER TO ModDesc;
     Command = PROCEDURE;
     ModuleName = ARRAY 32 OF CHAR; (* ModuleName and ModDesc must match Modules.Mod *)
 
-    ModDesc = RECORD (* was 80 bytes, now 128 *)
+    ModDesc = RECORD (* 128 bytes *)
         name: ModuleName;                                               (* 32 *)
         next: Module;                                                   (*  8 *)
         key, num, size, refcnt: INTEGER;                                (* 32 *)
         data, code, imp, cmd, ent, ptr, unused: INTEGER  (*addresses*)  (* 56 *)
-      END ;
+    END ;
 
-  VAR 
-
+  VAR
     binroot, M: Module;
-
     modid: OAS.Ident; 
     MTOrg, binStart, kStart, binAllocPtr, res*: INTEGER;
     importing*, imported*: ModuleName;
@@ -40,24 +39,32 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
 
   PROCEDURE zero( VAR s: ARRAY OF CHAR);
     VAR i : INTEGER;
-  BEGIN i:=0;
-    WHILE i < LEN(s) DO s[i]:=0X; INC(i) END
+  BEGIN 
+    i:=0; WHILE i < LEN(s) DO s[i]:=0X; INC(i) END
   END zero;
 
   PROCEDURE error(n: INTEGER; name: ModuleName);
   BEGIN 
-    res := n; importing := name; Emit("!"); 
-    Emit(name);Out.Int(res,3)
+    res := n;
+    importing := name;
+    Emit("!"); 
+    Emit(name);
+    Out.Int(res,3)
   END error;
 
   PROCEDURE Check(s: ARRAY OF CHAR);
     VAR i: INTEGER; ch: CHAR;
-  BEGIN ch := s[0]; res := 1; i := 1;
+  BEGIN 
+    ch := s[0]; res := 1; i := 1;
     IF (ch >= "A") & (ch <= "Z") OR (ch >= "a") & (ch <= "z") THEN
-      REPEAT ch := s[i]; INC(i)
+      REPEAT 
+        ch := s[i]; 
+        INC(i)
       UNTIL ~((ch >= "0") & (ch <= "9") OR (ch >= "A") & (ch <= "Z")
-        OR (ch >= "a") & (ch <= "z") OR (ch = ".")) OR (i = 32);
-      IF (i < 32) & (ch = 0X) THEN res := 0 END
+           OR (ch >= "a") & (ch <= "z") OR (ch = ".")) OR (i = 32);
+      IF (i < 32) & (ch = 0X) THEN 
+        res := 0
+      END
     END
   END Check;
 
@@ -86,7 +93,10 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
         Files.Set(R, F, 0);
         flen := Files.Length(F);
         Files.ReadString(R, name1);
-        Files.ReadInt(R, key); Files.Read(R, b); ch:=CHR(b); Files.ReadInt(R, size);
+        Files.ReadInt(R, key);
+        Files.Read(R, b);
+        ch:=CHR(b);
+        Files.ReadInt(R, size);
         importing := name1;
         IF ch = versionkey THEN
           Files.ReadString(R, impname);   (*imports*)
@@ -96,8 +106,11 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
             import[nofimps] := impmod;
             importing := name1;
             IF res = 0 THEN
-              IF impmod.key = impkey THEN INC(impmod.refcnt); INC(nofimps)
-              ELSE ok:=FALSE; error(3, name1); imported := impname
+              IF impmod.key = impkey THEN
+                INC(impmod.refcnt);
+                INC(nofimps)
+              ELSE 
+                ok:=FALSE; error(3, name1); imported := impname
               END
             END ;  
             zero(impname);
@@ -193,7 +206,7 @@ MODULE OAL;  (*Link and create binary on Arm; NW 20.10.2013 CP 21.05.2014 2020-2
         Emit("   |       Body: ");Out.Int(w,16);EmitLn;
         Files.Read(R, b); ch:=CHR(b);
         Emit("   |        Tag: ");Out.Char(ch);EmitLn;
-        IF ch # "O" THEN (*corrupted file*)  mod := NIL (* ; ok:=FALSE; error(4, name) *) END
+        IF ch # "O" THEN (*corrupted file*)  mod := NIL; ok:=FALSE; error(4, name1) END
       END ;
       IF res = 0 THEN (*fixup of BL*)
         adr := mod.code + fixorgP*8;

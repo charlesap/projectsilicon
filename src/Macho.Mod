@@ -164,15 +164,15 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
     Header( R , 380H + ((13H * 8)*2), 19 ); 
     Segment( R, 0, "__PAGEZERO", 0,           100000000H,     0,          0,     0, 0 ); 
-    Segment( R, 2, "__TEXT",                  100000000H, 4000H,          0, 4000H, 500000005H, 0 );
-    Section( R,    "__text", "__TEXT",        100003F90H,   1CH, 400003F90H,     0,  80000400H    );
-    Section( R,    "__unwind_info", "__TEXT", 100003FACH,   48H, 200003FACH,     0,         0     );
+    Segment( R, 2, "__EXIT",                  100000000H, 4000H,          0, 4000H, 500000005H, 0 );
+    Section( R,    "__exit", "__EXIT",        100003F90H,   1CH, 400003F90H,     0,  80000400H    );
+    Section( R,    "__unwind_info", "__EXIT", 100003FACH,   48H, 400003FACH,     0,         0     );
     Segment( R, 1, "__K000",                  100004000H, 4000H,      4000H, 4000H, 300000003H, 0 );
-    Section( R,    "__k000", "__K000",        100004000H, 4000H,      4000H,     0,         0     );
-    Segment( R, 1, "__D000",                  100008000H, 4000H,      8000H, 4000H, 300000003H, 0 );
-    Section( R,    "__d000", "__D000",        100008000H, 4000H,      8000H,     0,         0     );
-    Segment( R, 1, "__C000",                  10000C000H, 4000H,     0C000H, 4000H, 500000005H, 0 );
-    Section( R,    "__c000", "__C000",        10000C000H, 4000H, 40000C000H,     0,  80000400H    );
+    Section( R,    "__k000", "__K000",        100004000H, 4000H, 400004000H,     0,         0     );
+    Segment( R, 1, "__DATA",                  100008000H, 4000H,      8000H, 4000H, 300000003H, 0 );
+    Section( R,    "__data", "__DATA",        10000BF00H,  100H, 40000BF00H,     0,         0     );
+    Segment( R, 1, "__TEXT",                  10000C000H, 4000H,     0C000H, 4000H, 500000005H, 0 );
+    Section( R,    "__text", "__TEXT",        10000C000H,  0C0H, 40000C000H,     0,  80000400H    );
 
     Segment( R, 0, "__LINKEDIT", b + 100000000H, 4000H, b, 1E1H, 100000001H, 0 );
     Mysterious( R, TRUE, 34H, 38H, b );              (* dyld_chained_fixups  *)
