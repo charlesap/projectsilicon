@@ -154,8 +154,8 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
           WR( R, 0000000000000000H );
   END ExitCode;
 
-  PROCEDURE Write*(VAR R: Files.Rider; K: OAB.Kbin; I: OAB.Mbin; DataStart, DataEnd, CodeEnd, ProgramEntry: INTEGER);
-    VAR i,b: INTEGER;
+  PROCEDURE Write*(VAR R: Files.Rider; K: OAB.Kbin; I: OAB.Mbin; DataEnd, CodeEnd, ProgramEntry: INTEGER);
+    VAR i,b,p,v: INTEGER;
   BEGIN
 
 
@@ -189,40 +189,21 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     Mysterious( R, FALSE, 29H, 0, b + 78H );  (* table of non-instructions in __text *)
     CodeSignature( R, 111H, b + 0D0H );
 
-
-
-                                                                                    
-    (* PADDING *)                                                        
-    i:=0; WHILE i < (1937 - 39H (*13H * 2*))  DO                                              
-    WR( R, 0000000000000000H ); (* padding                 *)
-    INC(i);                                                              
-    END;                                                                 
-                                
+    (* post-header padding *)
+    i := 0; WHILE i < (1937 - 39H ) DO WR( R, 0000000000000000H ); INC(i) END;
     ExitCode( R );
 
-(*
-    i:=0;   
-    x:=SYSTEM.VAL(INTEGER,Code);
-    WHILE i < CodeLimit DO SYSTEM.GET(x+i,v); WR( R, v ); INC(i,8) END; 
-*)
-    
-    (* global elements *)                                  
-    i:=0; WHILE i < (04000H DIV 8)  DO                                              
-    WR( R, 0FFFFFFFFFFFFFFFFH ); (* padding                 *)
-    INC(i);                                                              
-    END;            
+    (* global elements at 4000H *)                                  
+    p:=SYSTEM.VAL(INTEGER,K);
+    i := 0; WHILE i < 4000H DO SYSTEM.GET(p,v); WR( R, v ); INC(p,8); INC(i,8) END;
                                                      
-    (* module data *)                                                        
-    WHILE i < (08000H DIV 8)  DO                                              
-    WR( R, 0AAAAAAAAAAAAAAAAH ); (* padding                 *)
-    INC(i);                                                              
-    END;                                                                 
+    (* module data at 8000H *)
+    i:=0; WHILE i <  4000H - DataEnd DO WR( R, 0 ); INC(i,8); END; (* pad so data ends at 0C000H *)
+    p:=SYSTEM.VAL(INTEGER,I);
+    WHILE i <  4000H DO SYSTEM.GET(p,v); WR( R, v ); INC(p,8); INC(i,8); END;
                                 
     (* module code *)                                                        
-    WHILE i < (0C000H DIV 8)  DO                                              
-    WR( R, 0000000000000000H ); (* padding                 *)
-    INC(i);                                                              
-    END;                                                                 
+    WHILE i <  8000H DO SYSTEM.GET(p,v); WR( R, v ); INC(p,8); INC(i,8); END;
                                 
     (* misc bookkeeping to satisfy the loader *)
 
