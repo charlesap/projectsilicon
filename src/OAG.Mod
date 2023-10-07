@@ -6,7 +6,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
 
   CONST WordSize* = 8;
     StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*)
-    MT = 29; SP = 31; LNK = 30; (*MT = 12, SP = 14, LNK = 15;*)   (*dedicated registers*)
+    NTR = 26; MT = 28; FP = 29, LNK = 30; SP = 31; (*MT = 12, SP = 14, LNK = 15;*)   (*dedicated registers*)
     maxCode = 240000; maxStrx = 2400; maxTD = 640; C24 = 1000000H;
     Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)
 
@@ -131,7 +131,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     VAR ok: BOOLEAN;
   BEGIN (*emit branch instruction*)
     ok:= FALSE;
-    IF ((op = BR) & (cond = 7)) THEN (* return from procedure or interrupt *)
+    IF ((op = BR) & (cond = 7)) THEN (* off (register) =30 is return from procedure 11 is from oberon interrupt *)
       PutCode( pc, 0D65F0000H + (off *20H )); ok:= TRUE; INC(pc)
     END;
     IF op = BLR THEN END;
@@ -142,6 +142,16 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       PutCode( pc, 77777777H); INC(pc)
     END
   END APut3;
+
+(*
+  b <offset>    -- relative forward/back branch
+  br <Xn>       -- absolute branch to address in register Xn
+  -- branch & link, store return address in X30 (LR)
+  bl <offset>   -- relative forward/back branch
+  blr <Xn>      -- absolute branch to address in register Xn
+*)
+
+
 
   PROCEDURE incR;
   BEGIN
@@ -880,7 +890,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       APut3(BR, 7, LNK)
     ELSE (*interrupt return, restore R2, R1, R0*)
       Put2(Ldr, 2, SP, 8); Put2(Ldr, 1, SP, 4); Put2(Ldr, 0, SP, 0); Put1(Add, SP, SP, size);
-      APut3(BR, 7, 10H) (*RTI*)
+      APut3(BR, 7, NTR) (*RTI*)
     END ;
     RH := 0
   END Return;
