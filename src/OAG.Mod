@@ -6,7 +6,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
 
   CONST WordSize* = 8;
     StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*)
-    NTR = 26; MT = 28; FP = 29, LNK = 30; SP = 31; (*MT = 12, SP = 14, LNK = 15;*)   (*dedicated registers*)
+    NTR = 26; MT = 28; FP = 29; LNK = 30; SP = 31; (*MT = 12, SP = 14, LNK = 15;*)   (*dedicated registers*)
     maxCode = 240000; maxStrx = 2400; maxTD = 640; C24 = 1000000H;
     Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)
 
