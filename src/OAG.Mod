@@ -14,7 +14,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     Mov = 0; Lsl = 1; Asr = 2; Ror= 3; And = 4; Ann = 5; Ior = 6; Xor = 7;
     Add = 8; Sub = 9; Cmp = 9; Mul = 10; Div = 11;
     Fad = 12; Fsb = 13; Fml = 14; Fdv = 15;
-    Ldr = 8; Str = 10;
+    Ldr = 8; Str = 10; Ldp = 16; Stp = 18;
     BR = 0; BLR = 1; BC = 2; BL = 3;
     MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
 
@@ -93,6 +93,16 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     RETURN I
   END GetData;
 
+(*  procedure call prologue / epilogue
+ ff 43 00 d1 	sub	sp, sp, #16     -- APut1 Sub SP SP 16
+ fd 7b 00 a9 	stp	x29, x30, [sp]  -- APut2 Stp R29 SP (29 & 30)
+ fd 03 00 91 	mov	x29, sp         -- APut1 Mov R29 SP
+
+ fd 7b 40 a9 	ldp	x29, x30, [sp]  -- APut2 Ldp R29 SP (29 & 30)
+ ff 43 00 91 	add	sp, sp, #16     -- APut1 Add SP SP 16
+ c0 03 5f d6 	ret                     -- APut3 BR  7 LNK  (unconditional)
+*)
+
   PROCEDURE Put0(op, a, b, c: INTEGER);
     VAR i: INTEGER;
   BEGIN (*emit format-0 instruction*)
@@ -100,12 +110,26 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     INC(pc)
   END Put0;
 
+  PROCEDURE APut0(op, a, b, c: INTEGER);
+    VAR i: INTEGER;
+  BEGIN (*emit format-0 instruction*)
+    INC(pc)
+  END APut0;
+
   PROCEDURE Put1(op, a, b, im: INTEGER);
   BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
     IF im < 0 THEN INC(op, V) END ;
     PutCode(pc, (((a+40H) * 10H + b) * 10H + op) * 10000H + (im MOD 10000H));
     INC(pc)
   END Put1;
+
+  PROCEDURE APut1(op, a, b, im: INTEGER);
+    VAR v: INTEGER;
+  BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
+    v:= 910003FDH;
+    PutCode(pc, v );
+    INC(pc)
+  END APut1;
 
   PROCEDURE Put1a(op, a, b, im: INTEGER);
   BEGIN (*same as Put1, but with range test  -10000H <= im < 10000H*)
@@ -116,11 +140,28 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     END
   END Put1a;
 
+  PROCEDURE APut1a(op, a, b, im: INTEGER);
+  BEGIN (*same as Put1, but with range test  -10000H <= im < 10000H*)
+    Put1(op, a, b, im)
+  END APut1a;
+
   PROCEDURE Put2(op, a, b, off: INTEGER);
   BEGIN (*emit load/store instruction*)
     PutCode( pc, ((op * 10H + a) * 10H + b) * 100000H + (off MOD 100000H));
     INC(pc)
   END Put2;
+
+  PROCEDURE APut2(op, a, b, off: INTEGER);
+    VAR v: INTEGER;
+  BEGIN (*emit load/store instruction*)
+    v := 077777777H;
+    IF op = Stp THEN v:= 0A9007BFDH  END;
+    IF op = Ldp THEN v:= 0A9407BFDH  END;
+    IF op = Str THEN v:= 088888888H  END;
+    IF op = Ldr THEN v:= 099999999H  END;
+    PutCode( pc, v );
+    INC(pc)
+  END APut2;
 
   PROCEDURE Put3(op, cond, off: INTEGER);
   BEGIN (*emit branch instruction*)
@@ -1120,6 +1161,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     END
   END FindPtrs;
 
+
+
   PROCEDURE Close*(VAR modid: OAS.Ident; key, nofent: INTEGER);
     VAR obj: OAB.Object;
       i, comsize, nofimps, nofptrs, size: INTEGER;
@@ -1128,7 +1171,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN  (*exit code*)
     IF verbose THEN EmitLn; Emit("Writing object file"); EmitLn; END;
     IF version = 0 THEN Put1(Mov, 0, 0, 0); APut3(BR, 7, 0)  (*RISC-0*)
-    ELSE Put2(Ldr, LNK, SP, 0); Put1(Add, SP, SP, 4); APut3(BR, 7, LNK)
+    ELSE APut2(Ldp, FP, SP, 0); APut1(Add, SP, SP, 16); APut3(BR, 7, LNK) (* Ldp = FP + LNK *)
     END ;
     obj := OAB.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
     WHILE obj # NIL DO
