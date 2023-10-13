@@ -13,7 +13,7 @@ echo
 echo "in interim"
 ../obnc/oac -ms E.Mod
 codesign -s - E.bin
-objdump -d -j __c000 interim/E.bin
+objdump -d -j __c000 E.bin
 ../obnc/oac -ms M.Mod
 codesign -s - M.bin
 ../obnc/oac -s Out.Mod
