@@ -125,8 +125,9 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       Emit("   |    Loading: ");Emit(fname);EmitLn;
       Emit("   |       Size: ");Out.Int(flen,16);EmitLn;
       Emit("   |       Name: ");Emit(name1);EmitLn;
-      Emit("   |        Key: ");Out.Int(key,16);EmitLn;
-      Emit("   | Versionkey: ");Out.Int(b,16);EmitLn;
+      Emit("   |        Key: ");Out.Hex(key);EmitLn;
+      Emit("   | Versionkey: ");Out.Hex(b);EmitLn;
+      Emit("   |    nofimps: ");Out.Int(nofimps,16);EmitLn;
       Emit("   |   CodeSize: ");Out.Int(size,16);EmitLn;
       IF ok THEN 
         INC(size, DescSize);
@@ -151,7 +152,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         zero(mod.name);
         mod.name := name; 
         mod.key := key; mod.refcnt := 0;
-        mod.data := p;  (*data*)
+        mod.data := p - binStart;  (*data*)
         SYSTEM.PUT(mod.num * 8 + MTOrg, p );  (*module table entry*)
         Files.ReadInt(R, n);
         Emit("   |    TDBytes: ");Out.Int(n,16);EmitLn;
@@ -163,35 +164,41 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         Emit("   |StringBytes: ");Out.Int(n,16);EmitLn;
         WHILE n > 0 DO Files.Read(R, b); ch:=CHR(b); SYSTEM.PUT(p, ch); INC(p); DEC(n) END ;   (*strings*)
         DataEnd:= p - binStart;
-        xlat := DataEnd - 10000C000H; (* first module line between data and code *)
-        mod.code := xlat;  (*program*)
-        Emit("   |       xlat: ");Out.Int(xlat,16);EmitLn;
+        xlat := 10000C000H - DataEnd; (* first module line between data and code *)
+        mod.code := 10000C000H;  (*program*)
+        Emit("   |       xlat: ");Out.Hex(xlat);EmitLn;
         Files.ReadInt(R, n);
-        Emit("   |  CodeWords: ");Out.Int(n,16);EmitLn;
-        DataEnd := p - SYSTEM.VAL(INTEGER,I);
-        WHILE n > 0 DO Files.ReadInt(R, w); SYSTEM.PUT(p, w); INC(p, 8); DEC(n) END ;  (*program code*)
+        Emit("   |  CodeBytes: ");Out.Int(n*4,16);EmitLn;
+        WHILE n > 0 DO
+          Files.ReadInt(R, w);
+          SYSTEM.PUT(p, w);
+          INC(p, 8); DEC(n,2)
+        END ;  (*program code*)
         CodeEnd := p - binStart;
-        Emit("   |    DataEnd: ");Out.Int(DataEnd,16);EmitLn;
-        Emit("   |    CodeEnd: ");Out.Int(CodeEnd,16);EmitLn;
+        Emit("   |    DataEnd: ");Out.Hex(DataEnd);EmitLn;
+        Emit("   |    CodeEnd: ");Out.Hex(CodeEnd);EmitLn;
         mod.imp := p;  (*copy imports*)
         i := 0;
         WHILE i < nofimps DO
           xmod:=import[i]; (*should go in SYSTEM.PUT *)
           SYSTEM.PUT(p, 0); INC(p, 8); INC(i)                                                                   
         END ;
-        mod.cmd := p;  (*commands*) 
+        mod.cmd := p; (*commands*) 
         Files.Read(R, b); ch:=CHR(b);
+          Emit("   |    -------- "); EmitLn;
         WHILE ch # 0X DO
           Emit("   |    Command: ");
           b:=ORD(ch); Out.Char(ch); REPEAT SYSTEM.PUT(p, b); INC(p); Files.Read(R, b); ch:=CHR(b) UNTIL ch = 0X;EmitLn;
           REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 8 = 0;
           Files.ReadInt(R, n); SYSTEM.PUT(p, n); INC(p, 8); Files.Read(R, b); ch:=CHR(b);
-          Emit("   |         At: ");Out.Int(n,16);EmitLn
+          Emit("   |         At: ");Out.Int(n,16); EmitLn
         END ;
+          Emit("   |    ======== ");EmitLn;
         REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 8 = 0;
-        mod.ent := p; (*entries*)
+        mod.ent := p - binStart ; (*entries*)
+        Emit("   |     ETable: ");Out.Hex(mod.ent);EmitLn;
         Files.ReadInt(R, n);
-        Emit("   |    Entries: ");Out.Int(n,16);EmitLn;
+        Emit("   |     ECount: ");Out.Int(n,16);EmitLn;
         WHILE n > 0 DO Files.ReadInt(R, w); SYSTEM.PUT(p, w); INC(p, 8); DEC(n) END ;
         mod.ptr := p; (*pointer references*)
         Files.ReadInt(R, w);

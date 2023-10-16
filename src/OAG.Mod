@@ -93,16 +93,6 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     RETURN I
   END GetData;
 
-(*  procedure call prologue / epilogue
- ff 43 00 d1 	sub	sp, sp, #16     -- APut1 Sub SP SP 16
- fd 7b 00 a9 	stp	x29, x30, [sp]  -- APut2 Stp R29 SP (29 & 30)
- fd 03 00 91 	mov	x29, sp         -- APut1 Mov R29 SP
-
- fd 7b 40 a9 	ldp	x29, x30, [sp]  -- APut2 Ldp R29 SP (29 & 30)
- ff 43 00 91 	add	sp, sp, #16     -- APut1 Add SP SP 16
- c0 03 5f d6 	ret                     -- APut3 BR  7 LNK  (unconditional)
-*)
-
   PROCEDURE Put0(op, a, b, c: INTEGER);
     VAR i: INTEGER;
   BEGIN (*emit format-0 instruction*)
@@ -111,8 +101,10 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END Put0;
 
   PROCEDURE APut0(op, a, b, c: INTEGER);
-    VAR i: INTEGER;
+    VAR v: INTEGER;
   BEGIN (*emit format-0 instruction*)
+    v:= 0F0F0F0F0H;
+    PutCode(pc, v );
     INC(pc)
   END APut0;
 
@@ -123,10 +115,65 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     INC(pc)
   END Put1;
 
+(*
+ fd 03 00 91 	mov	x29, sp
+
+ e0 03 00 aa 	mov	x0, x0
+ e0 03 01 aa 	mov	x0, x1
+ e0 03 02 aa 	mov	x0, x2
+ e0 03 04 aa 	mov	x0, x4
+ e0 03 08 aa 	mov	x0, x8
+ e0 03 10 aa 	mov	x0, x16
+ e0 03 1f aa 	mov	x0, xzr
+ e0 03 00 aa 	mov	x0, x0
+ e1 03 00 aa 	mov	x1, x0
+ e2 03 00 aa 	mov	x2, x0
+ e4 03 00 aa 	mov	x4, x0
+ e8 03 00 aa 	mov	x8, x0
+ f0 03 00 aa 	mov	x16, x0
+ ff 03 00 aa 	mov	xzr, x0
+
+
+ 1f 00 00 91 	mov	sp, x0
+ 3f 00 00 91 	mov	sp, x1
+ 5f 00 00 91 	mov	sp, x2
+ 9f 00 00 91 	mov	sp, x4
+ 1f 01 00 91 	mov	sp, x8
+ 1f 02 00 91 	mov	sp, x16
+ df 03 00 91 	mov	sp, x30
+
+ e0 03 00 91 	mov	x0, sp
+ e1 03 00 91 	mov	x1, sp
+ e2 03 00 91 	mov	x2, sp
+ e4 03 00 91 	mov	x4, sp
+ e8 03 00 91 	mov	x8, sp
+ f0 03 00 91 	mov	x16, sp
+ fe 03 00 91 	mov	x30, sp
+
+ ff 03 01 d1    sub     sp, sp, #64
+ ff 03 01 91    add     sp, sp, #64
+*)
+
   PROCEDURE APut1(op, a, b, im: INTEGER);
     VAR v: INTEGER;
   BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
-    v:= 910003FDH;
+    v:= 0F1F1F1F1H;
+    IF op = Mov THEN
+     IF op < 2000H THEN (* no U flag *)
+      IF (( a # SP ) & ( b # SP )) THEN
+        v:= 0AA0003E0H + (a * 10000H) + b  ;
+      END;
+      IF (( a = SP ) & ( b # SP )) THEN
+        v:= 0910003FDH; 
+      END;
+      IF (( a # SP ) & ( b = SP )) THEN
+        v:= 0910003FDH; 
+      END;
+     ELSE (* has U flag *)
+     END;
+    END;  
+    IF op = Sub THEN v:= 0D10103FFH END;
+    IF op = Add THEN v:= 0910103FFH END;
     PutCode(pc, v );
     INC(pc)
   END APut1;
@@ -155,8 +202,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     VAR v: INTEGER;
   BEGIN (*emit load/store instruction*)
     v := 077777777H;
-    IF op = Stp THEN v:= 0A9007BFDH  END;
-    IF op = Ldp THEN v:= 0A9407BFDH  END;
+    IF op = Stp THEN v:= 0A9BF7BFDH  END; (* x29, x30, [sp, #-16]! *)
+    IF op = Ldp THEN v:= 0A8C17BFDH  END; (* x29, x30, [sp], #16   *)
     IF op = Str THEN v:= 088888888H  END;
     IF op = Ldr THEN v:= 099999999H  END;
     PutCode( pc, v );
@@ -168,6 +215,11 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     PutCode( pc, ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H)); INC(pc)
   END Put3;
 
+(*
+100003f40: f8 ff ff 97 	bl	0x100003f20 <_main>
+100003f44: 1c 00 00 94 	bl	0x100003fb4 <_last>
+*)
+
   PROCEDURE APut3(op, cond, off: INTEGER);
     VAR ok: BOOLEAN;
   BEGIN (*emit branch instruction*)
@@ -177,7 +229,13 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     END;
     IF op = BLR THEN END;
     IF op = BC  THEN END;
-    IF op = BL  THEN END;
+    IF op = BL  THEN
+      IF off <= 0 THEN
+        PutCode( pc, 97FFFFFFH + (off + 1 )); ok:= TRUE; INC(pc)
+      ELSE
+        PutCode( pc, 94000000H + (off  )); ok:= TRUE; INC(pc)
+      END
+    END;
 
     IF ok = FALSE THEN
       PutCode( pc, 77777777H); INC(pc)
@@ -297,7 +355,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       ELSIF x.mode = Cond THEN
         Put3(BC, negated(x.r), 2);
         FixLink(x.b); Put1(Mov, RH, 0, 1); Put3(BC, 7, 1);
-        FixLink(x.a); Put1(Mov, RH, 0, 0); x.r := RH; incR
+        FixLink(x.a); APut1(Mov, RH, 0, 0); x.r := RH; incR
       END ;
       x.mode := Reg
     END
@@ -532,11 +590,11 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN
     IF x.type.form = OAB.Int THEN
       IF x.mode = OAB.Const THEN x.a := -x.a
-      ELSE load(x); Put1(Mov, RH, 0, 0); Put0(Sub, x.r, RH, x.r)
+      ELSE load(x); APut1(Mov, RH, 0, 0); Put0(Sub, x.r, RH, x.r)
       END
     ELSIF x.type.form = OAB.Real THEN
       IF x.mode = OAB.Const THEN x.a := x.a + 7FFFFFFFH + 1
-      ELSE load(x); Put1(Mov, RH, 0, 0); Put0(Fsb, x.r, RH, x.r)
+      ELSE load(x); APut1(Mov, RH, 0, 0); Put0(Fsb, x.r, RH, x.r)
       END
     ELSE (*form = Set*)
       IF x.mode = OAB.Const THEN x.a := -x.a-1 
@@ -887,7 +945,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE Call*(VAR x: Item; r: INTEGER);
   BEGIN (*x.type.form = OAB.Proc*)
     IF x.mode = OAB.Const THEN
-      IF x.r >= 0 THEN Put3(BL, 7, (x.a DIV 4)-pc-1)
+      IF x.r >= 0 THEN APut3(BL, 7, (x.a DIV 4)-pc-1)
       ELSE (*imported*)
         IF pc - fixorgP < 1000H THEN
           Put3(BL, 7, ((-x.r) * 100H + x.a) * 1000H + pc-fixorgP); fixorgP := pc-1
@@ -908,29 +966,50 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     END
   END Call;
 
+(*  procedure call prologue / epilogue
+ ff 43 00 d1 	sub	sp, sp, #16     -- APut1 Sub SP SP 16
+ fd 7b 00 a9 	stp	x29, x30, [sp]  -- APut2 Stp R29 SP (29 & 30)
+ fd 03 00 91 	mov	x29, sp         -- APut1 Mov R29 SP
+
+ fd 7b 40 a9 	ldp	x29, x30, [sp]  -- APut2 Ldp R29 SP (29 & 30)
+ ff 43 00 91 	add	sp, sp, #16     -- APut1 Add SP SP 16
+ c0 03 5f d6 	ret                     -- APut3 BR  7 LNK  (unconditional)
+*)
+
+(*
+ fd 7b bf a9 	stp	x29, x30, [sp, #-16]!
+ fd 03 00 91 	mov	x29, sp
+ ff 03 01 d1 	sub	sp, sp, #64
+ ff 03 01 91 	add	sp, sp, #64
+ fd 7b c1 a8 	ldp	x29, x30, [sp], #16
+ c0 03 5f d6 	ret
+*)  
+
+
+
   PROCEDURE Enter*(parblksize, locblksize: INTEGER; int: BOOLEAN);
     VAR a, r: INTEGER;
   BEGIN frame := 0;
     IF ~int THEN (*procedure prolog*)
       IF locblksize >= 10000H THEN OAS.Mark("too many locals") END ;
-      a := 4; r := 0;
-      Put1(Sub, SP, SP, locblksize); Put2(Str, LNK, SP, 0);
-      WHILE a < parblksize DO Put2(Str, r, SP, a); INC(r); INC(a, 4) END
+      a := 8; r := 0;
+     APut2(Stp, FP, SP, -16); APut1(Mov, FP, SP, 0); APut1(Sub, SP, SP, locblksize); 
+      WHILE a < parblksize DO APut2(Str, r, SP, a); INC(r); INC(a, 8) END
     ELSE (*interrupt procedure*)
-      Put1(Sub, SP, SP, locblksize); Put2(Str, 0, SP, 0); Put2(Str, 1, SP, 4); Put2(Str, 2, SP, 8)
-      (*R0, R1, R2 saved on stack*)
+      APut1(Sub, SP, SP, locblksize); APut2(Stp, 0, SP, 0); APut2(Stp, 2, SP, 16)
+      (*R0, R1, R2, R3 saved on stack*)
     END
   END Enter;
 
   PROCEDURE Return*(form: INTEGER; VAR x: Item; size: INTEGER; int: BOOLEAN);
   BEGIN
     IF form # OAB.NoTyp THEN load(x) END ;
-    IF ~int THEN (*procedure epilog*) (*
-      Put2(Ldr, LNK, SP, 0);
-      Put1(Add, SP, SP, size);    *)
+    IF ~int THEN (*procedure epilog*) 
+      APut2(Ldp, FP, SP, 0);
+      APut1(Add, SP, SP, size);    
       APut3(BR, 7, LNK)
     ELSE (*interrupt return, restore R2, R1, R0*)
-      Put2(Ldr, 2, SP, 8); Put2(Ldr, 1, SP, 4); Put2(Ldr, 0, SP, 0); Put1(Add, SP, SP, size);
+      APut2(Ldr, 2, SP, 8); APut2(Ldr, 1, SP, 4); APut2(Ldr, 0, SP, 0); APut1(Add, SP, SP, size);
       APut3(BR, 7, NTR) (*RTI*)
     END ;
     RH := 0
@@ -1034,7 +1113,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     IF x.mode = OAB.Const THEN x.a := ABS(x.a)
     ELSE load(x);
       IF x.type.form = OAB.Real THEN Put1(Lsl, x.r, x.r, 1); Put1(Ror, x.r, x.r, 1)
-      ELSE Put1(Cmp, x.r, x.r, 0); Put3(BC, GE, 2); Put1(Mov, RH, 0, 0); Put0(Sub, x.r, RH, x.r)
+      ELSE Put1(Cmp, x.r, x.r, 0); Put3(BC, GE, 2); APut1(Mov, RH, 0, 0); Put0(Sub, x.r, RH, x.r)
       END
     END
   END Abs;
@@ -1131,7 +1210,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE Header*;
   BEGIN entry := pc*4;
     IF version = 0 THEN PutCode( 0, 0E7000000H-1 + pc);  Put1a(Mov, SP, 0, StkOrg0)  (*RISC-0*)
-    ELSE Put1(Sub, SP, SP, 4); Put2(Str, LNK, SP, 0)
+    ELSE APut1(Sub, SP, SP, 16); APut2(Stp, FP, SP, 0); APut1(Mov, FP, SP, 0)
     END
   END Header;
 
@@ -1162,17 +1241,18 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END FindPtrs;
 
 
-
   PROCEDURE Close*(VAR modid: OAS.Ident; key, nofent: INTEGER);
     VAR obj: OAB.Object;
-      i, comsize, nofimps, nofptrs, size: INTEGER;
+      i, c, comsize, nofimps, nofptrs, size: INTEGER;
+      b: BYTE;
       name: OAS.Ident;
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
     IF verbose THEN EmitLn; Emit("Writing object file"); EmitLn; END;
-    IF version = 0 THEN Put1(Mov, 0, 0, 0); APut3(BR, 7, 0)  (*RISC-0*)
+    IF version = 0 THEN APut1(Mov, 0, 0, 0); APut3(BR, 7, 0)  (*RISC-0*)
     ELSE APut2(Ldp, FP, SP, 0); APut1(Add, SP, SP, 16); APut3(BR, 7, LNK) (* Ldp = FP + LNK *)
     END ;
+    IF pc MOD 2 # 0 THEN INC( pc ) END;
     obj := OAB.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
     WHILE obj # NIL DO
       IF (obj.class = OAB.Mod) & (obj.dsc # OAB.system) THEN INC(nofimps) (*count imports*)
@@ -1206,7 +1286,13 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     FOR i := 0 TO strx-1 DO Files.Write(R, ORD(str[i])) END ;  (*strings*)
     Files.WriteInt(R, pc);  (*code len*)
     IF verbose THEN Emit("Writing program code"); EmitLn; END;
-    FOR i := 0 TO pc-1 DO Files.WriteInt(R, GetCode(i)) END ;  (*program*)
+    i:=0; WHILE i < pc DO 
+      Files.Write( R, code[i*4] );
+      Files.Write( R, code[(i*4)+1] );
+      Files.Write( R, code[(i*4)+2] );
+      Files.Write( R, code[(i*4)+3] );
+      INC(i)
+    END ;  (*program*)
     obj := OAB.topScope.next;
     IF verbose THEN Emit("Writing command entries"); EmitLn; END;
     WHILE obj # NIL DO  (*commands*)
