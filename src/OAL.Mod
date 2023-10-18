@@ -211,6 +211,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         Emit("   |    fixorgT: ");Out.Int(fixorgT,16);EmitLn;
         Files.ReadInt(R, w); body := SYSTEM.VAL(Command, mod.code + w - binStart );
         Emit("   |       Body: ");Out.Int(w,16);EmitLn;
+	ProgEntry := w;
         Files.Read(R, b); ch:=CHR(b);
         Emit("   |        Tag: ");Out.Char(ch);EmitLn;
         IF ch # "O" THEN (*corrupted file*)  mod := NIL; ok:=FALSE; error(4, name1) END

@@ -136,11 +136,11 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
   END CodeSignature;
 
 
-  PROCEDURE ExitCode(VAR R: Files.Rider);
+  PROCEDURE ExitCode(VAR R: Files.Rider; ProgEntry: INTEGER);
   BEGIN
           WR( R, 2222222211111111H );
           WR( R, 4444444433333333H );
-          WR( R,0D280003094002018H ); (*  D2800540H *)
+          WR( R,0D280003094002018H + (ProgEntry DIV 4)); (*  D2800540H *)
           WR( R, 00000001D4001001H );
           WR( R, 000000000000001CH );
           WR( R, 000000000000001CH );
@@ -154,7 +154,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
           WR( R, 0000000000000000H );
   END ExitCode;
 
-  PROCEDURE Write*(VAR R: Files.Rider; K: OAB.Kbin; I: OAB.Mbin; DataEnd, CodeEnd, ProgramEntry: INTEGER);
+  PROCEDURE Write*(VAR R: Files.Rider; K: OAB.Kbin; I: OAB.Mbin; DataEnd, CodeEnd, ProgEntry: INTEGER);
     VAR i,b,p,v: INTEGER;
   BEGIN
 
@@ -190,7 +190,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
     (* post-header padding *)
     i := 0; WHILE i < (1937 - 39H ) DO WR( R, 0000000000000000H ); INC(i) END;
-    ExitCode( R );
+    ExitCode( R, ProgEntry );
 
     (* kernel / runtime elements at 4000H *)                                  
     p:=SYSTEM.VAL(INTEGER,K);
