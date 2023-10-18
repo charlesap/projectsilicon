@@ -11,12 +11,9 @@ cd interim
 echo
 echo
 echo "in interim"
-../obnc/oac -ms E.Mod
-codesign -s - E.bin
-objdump -d -j __c000 E.bin
-../obnc/oac -ms F.Mod
-codesign -s - F.bin
-objdump -d -j __c000 F.bin
+../obnc/oac -ms V.Mod
+codesign -s - V.bin
+objdump -d -j __c000 V.bin
 ../obnc/oac -ms M.Mod
 codesign -s - M.bin
 objdump -d -j __c000 M.bin
