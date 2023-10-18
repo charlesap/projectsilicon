@@ -1027,8 +1027,10 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN frame := 0;
     IF ~int THEN (*procedure prolog*)
       IF locblksize >= 10000H THEN OAS.Mark("too many locals") END ;
+      a:=locblksize MOD 16;
+      IF a # 0 THEN INC(locblksize,16-a) END;
       a := 8; r := 0;
-     APut2(Stp, FP, SP, -16); APut1(Mov, FP, SP, 0); APut1(Sub, SP, SP, locblksize); 
+      APut1(Sub, SP, SP, 16); APut2(Stp, FP, SP, -16); APut1(Mov, FP, SP, 0); APut1(Sub, SP, SP, locblksize); 
       WHILE a < parblksize DO APut2(Str, r, SP, a); INC(r); INC(a, 8) END
     ELSE (*interrupt procedure*)
       APut1(Sub, SP, SP, locblksize); APut2(Stp, 0, SP, 0); APut2(Stp, 2, SP, 16)
@@ -1037,11 +1039,15 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END Enter;
 
   PROCEDURE Return*(form: INTEGER; VAR x: Item; size: INTEGER; int: BOOLEAN);
+    VAR a: INTEGER;
   BEGIN
     IF form # OAB.NoTyp THEN load(x) END ;
+    a:=size MOD 16;
+    IF a # 0 THEN INC(size,16-a) END;
     IF ~int THEN (*procedure epilog*) 
-      APut2(Ldp, FP, SP, 0);
       APut1(Add, SP, SP, size);    
+      APut2(Ldp, FP, SP, 16);
+      APut1(Add, SP, SP, 16);    
       APut3(BR, 7, LNK)
     ELSE (*interrupt return, restore R2, R1, R0*)
       APut2(Ldr, 2, SP, 8); APut2(Ldr, 1, SP, 4); APut2(Ldr, 0, SP, 0); APut1(Add, SP, SP, size);

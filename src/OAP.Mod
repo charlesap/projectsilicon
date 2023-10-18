@@ -876,7 +876,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       IF proc.expo THEN proc.exno := exno; INC(exno) END ;
       OAB.OpenScope; INC(level); type.base := OAB.noType;
       ProcedureType(type, parblksize);  (*formal parameter list*)
-      Check(OAS.semicolon, "no ;"); locblksize := parblksize; 
+      Check(OAS.semicolon, "no ;"); locblksize := parblksize;
       Declarations(locblksize);
       proc.val := OAG.Here() * 4; proc.type.dsc := OAB.topScope.next;
       IF sym = OAS.procedure THEN
