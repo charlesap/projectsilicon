@@ -266,7 +266,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     IF op = BC  THEN END;
     IF op = BL  THEN
       IF off <= 0 THEN
-        PutCode( pc, 97FFFFFFH + (off + 1 )); ok:= TRUE; INC(pc)
+        PutCode( pc, 97FFFFFFH + (off + 2 )); ok:= TRUE; INC(pc)
       ELSE
         PutCode( pc, 94000000H + (off  )); ok:= TRUE; INC(pc)
       END

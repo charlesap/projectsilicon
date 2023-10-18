@@ -4,7 +4,12 @@ PROCEDURE P;
 BEGIN
 END P;
 
+PROCEDURE Q;
 BEGIN
-  P 
+  P
+END Q;
+
+BEGIN
+  Q 
 END F.
 
