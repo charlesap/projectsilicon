@@ -16,8 +16,13 @@ codesign -s - E.bin
 objdump -d -j __c000 E.bin
 ../obnc/oac -ms M.Mod
 codesign -s - M.bin
-../obnc/oac -s Out.Mod
-../obnc/oac -s Files.Mod
+objdump -d -j __c000 M.bin
+../obnc/oac -ms Out.Mod
+#codesign -s - Out.bin
+#objdump -d -j __c000 Out.bin
+../obnc/oac -ms Files.Mod
+#codesign -s - Files.bin
+#objdump -d -j __c000 Files.bin
 ../obnc/oac -s Fonts.Mod
 ../obnc/oac -s Texts.Mod
 ../obnc/oac -s OAS.Mod

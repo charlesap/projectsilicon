@@ -103,7 +103,29 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE APut0(op, a, b, c: INTEGER);
     VAR v: INTEGER;
   BEGIN (*emit format-0 instruction*)
-    v:= 0F0F0F0F0H;
+    v:= 0F0000000H;
+    IF op = Mov THEN
+     IF op < 2000H THEN (* no U flag *)
+      IF (( a # SP ) & ( b # SP )) THEN
+      END;
+      IF (( a = SP ) & ( b # SP )) THEN
+      END;
+      IF (( a # SP ) & ( b = SP )) THEN
+      END;
+     ELSE (* has U flag *)
+     END
+    ELSE  
+      IF op = Lsl THEN v:= 09AC02000H END; (* negative immediate, positive is lsr *)
+      IF op = Asr THEN v:= 09AC02800H END; 
+      IF op = Ror THEN v:= 09AC02C00H END; 
+      IF op = Ann THEN v:= 022222222H END;
+      IF op = And THEN v:= 08A000000H END;
+      IF op = Ior THEN v:= 0AA000000H END;
+      IF op = Xor THEN v:= 0CA000000H END;
+      IF op = Add THEN v:= 08B000000H END;
+      IF op = Sub THEN v:= 0CB000000H END;
+      v:=v + (c*10000H) + (b*20H) + a;
+    END;
     PutCode(pc, v );
     INC(pc)
   END APut0;
@@ -170,10 +192,23 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
         v:= 0910003FDH; 
       END;
      ELSE (* has U flag *)
-     END;
-    END;  
-    IF op = Sub THEN v:= 0D10103FFH END;
+     END
+    ELSE (* not Mov *)  
+(*
     IF op = Add THEN v:= 0910103FFH END;
+    IF op = Sub THEN v:= 0D10103FFH END;
+*)
+      IF op = Lsl THEN v:= 0D340FC00H END; (* negative immediate, positive is lsr *)
+      IF op = Asr THEN v:= 09340FC00H END; 
+      IF op = Ror THEN v:= 093C00000H END; 
+      IF op = Ann THEN v:= 022222222H END;
+      IF op = And THEN v:= 092000000H END;
+      IF op = Ior THEN v:= 0B2000000H END;
+      IF op = Xor THEN v:= 0D2000000H END;
+      IF op = Add THEN v:= 091000000H END;
+      IF op = Sub THEN v:= 0D1000000H END;
+      v:=v + (im*400H) + (b*20H) + a;
+    END;
     PutCode(pc, v );
     INC(pc)
   END APut1;
@@ -182,7 +217,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN (*same as Put1, but with range test  -10000H <= im < 10000H*)
     IF (im >= -10000H) & (im <= 0FFFFH) THEN Put1(op, a, b, im)
     ELSE Put1(Mov+U, RH, 0, im DIV 10000H);
-      IF im MOD 10000H # 0 THEN Put1(Ior, RH, RH, im MOD 10000H) END ;
+      IF im MOD 10000H # 0 THEN APut1(Ior, RH, RH, im MOD 10000H) END ;
       Put0(op, a, b, RH)
     END
   END Put1a;
@@ -204,8 +239,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     v := 077777777H;
     IF op = Stp THEN v:= 0A9BF7BFDH  END; (* x29, x30, [sp, #-16]! *)
     IF op = Ldp THEN v:= 0A8C17BFDH  END; (* x29, x30, [sp], #16   *)
-    IF op = Str THEN v:= 088888888H  END;
-    IF op = Ldr THEN v:= 099999999H  END;
+    IF op = Str THEN v:= 004888888H  END;
+    IF op = Ldr THEN v:= 004999999H  END;
     PutCode( pc, v );
     INC(pc)
   END APut2;
@@ -337,12 +372,12 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       IF x.mode = OAB.Const THEN
         IF x.type.form = OAB.Proc THEN
           IF x.r > 0 THEN OAS.Mark("not allowed")
-          ELSIF x.r = 0 THEN Put3(BL, 7, 0); Put1a(Sub, RH, LNK, pc*4 - x.a)
-          ELSE GetSB(x.r); Put1(Add, RH, RH, x.a + 100H) (*mark as progbase-relative*)
+          ELSIF x.r = 0 THEN Put3(BL, 7, 0); APut1a(Sub, RH, LNK, pc*4 - x.a)
+          ELSE GetSB(x.r); APut1(Add, RH, RH, x.a + 100H) (*mark as progbase-relative*)
           END
         ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN Put1(Mov, RH, 0, x.a)
         ELSE Put1(Mov+U, RH, 0, x.a DIV 10000H MOD 10000H);
-          IF x.a MOD 10000H # 0 THEN Put1(Ior, RH, RH, x.a MOD 10000H) END
+          IF x.a MOD 10000H # 0 THEN APut1(Ior, RH, RH, x.a MOD 10000H) END
         END ;
         x.r := RH; incR
       ELSIF x.mode = OAB.Var THEN
@@ -364,15 +399,15 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE loadAdr(VAR x: Item);
   BEGIN
     IF x.mode = OAB.Var THEN
-      IF x.r > 0 THEN (*local*) Put1a(Add, RH, SP, x.a + frame)
-      ELSE GetSB(x.r); Put1a(Add, RH, RH, x.a)
+      IF x.r > 0 THEN (*local*) APut1a(Add, RH, SP, x.a + frame)
+      ELSE GetSB(x.r); APut1a(Add, RH, RH, x.a)
       END ;
       x.r := RH; incR
     ELSIF x.mode = OAB.Par THEN Put2(Ldr, RH, SP, x.a + frame);
-      IF x.b # 0 THEN Put1a(Add, RH, RH, x.b) END ;
+      IF x.b # 0 THEN APut1a(Add, RH, RH, x.b) END ;
       x.r := RH; incR
     ELSIF x.mode = RegI THEN
-      IF x.a # 0 THEN Put1a(Add, x.r, x.r, x.a) END
+      IF x.a # 0 THEN APut1a(Add, x.r, x.r, x.a) END
     ELSE OAS.Mark("address error")
     END ;
     x.mode := Reg
@@ -397,7 +432,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END loadTypTagAdr;
 
   PROCEDURE loadStringAdr(VAR x: Item);
-  BEGIN GetSB(0); Put1a(Add, RH, RH, varsize+x.a); x.mode := Reg; x.r := RH; incR
+  BEGIN GetSB(0); APut1a(Add, RH, RH, varsize+x.a); x.mode := Reg; x.r := RH; incR
   END loadStringAdr;
 
   (* Items: Conversion from constants or from Objects on the Heap to Items on the Stack*)
@@ -460,19 +495,19 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
         END ;
         Trap(10, 1)  (*BCC*)
       END ;
-      IF s = 4 THEN Put1(Lsl, y.r, y.r, 2) ELSIF s > 1 THEN Put1a(Mul, y.r, y.r, s) END ;
+      IF s = 4 THEN APut1(Lsl, y.r, y.r, 2) ELSIF s > 1 THEN Put1a(Mul, y.r, y.r, s) END ;
       IF x.mode = OAB.Var THEN
-        IF x.r > 0 THEN Put0(Add, y.r, SP, y.r); INC(x.a, frame)
+        IF x.r > 0 THEN APut0(Add, y.r, SP, y.r); INC(x.a, frame)
         ELSE GetSB(x.r);
-          IF x.r = 0 THEN Put0(Add, y.r, RH, y.r)
-          ELSE Put1a(Add, RH, RH, x.a); Put0(Add, y.r, RH, y.r); x.a := 0
+          IF x.r = 0 THEN APut0(Add, y.r, RH, y.r)
+          ELSE APut1a(Add, RH, RH, x.a); APut0(Add, y.r, RH, y.r); x.a := 0
           END
         END ;
         x.r := y.r; x.mode := RegI
       ELSIF x.mode = OAB.Par THEN
         Put2(Ldr, RH, SP, x.a + frame);
-        Put0(Add, y.r, RH, y.r); x.mode := RegI; x.r := y.r; x.a := x.b
-      ELSIF x.mode = RegI THEN Put0(Add, x.r, x.r, y.r); DEC(RH)
+        APut0(Add, y.r, RH, y.r); x.mode := RegI; x.r := y.r; x.a := x.b
+      ELSIF x.mode = RegI THEN APut0(Add, x.r, x.r, y.r); DEC(RH)
       END
     END
   END Index;
@@ -590,7 +625,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN
     IF x.type.form = OAB.Int THEN
       IF x.mode = OAB.Const THEN x.a := -x.a
-      ELSE load(x); APut1(Mov, RH, 0, 0); Put0(Sub, x.r, RH, x.r)
+      ELSE load(x); APut1(Mov, RH, 0, 0); APut0(Sub, x.r, RH, x.r)
       END
     ELSIF x.type.form = OAB.Real THEN
       IF x.mode = OAB.Const THEN x.a := x.a + 7FFFFFFFH + 1
@@ -598,7 +633,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       END
     ELSE (*form = Set*)
       IF x.mode = OAB.Const THEN x.a := -x.a-1 
-      ELSE load(x); Put1(Xor, x.r, x.r, -1)
+      ELSE load(x); APut1(Xor, x.r, x.r, -1)
       END
     END
   END Neg;
@@ -608,14 +643,14 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     IF op = OAS.plus THEN
       IF (x.mode = OAB.Const) & (y.mode = OAB.Const) THEN x.a := x.a + y.a
       ELSIF y.mode = OAB.Const THEN load(x);
-        IF y.a # 0 THEN Put1a(Add, x.r, x.r, y.a) END
-      ELSE load(x); load(y); Put0(Add, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
+        IF y.a # 0 THEN APut1a(Add, x.r, x.r, y.a) END
+      ELSE load(x); load(y); APut0(Add, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
       END
     ELSE (*op = OAS.minus*)
       IF (x.mode = OAB.Const) & (y.mode = OAB.Const) THEN x.a := x.a - y.a
       ELSIF y.mode = OAB.Const THEN load(x);
-        IF y.a # 0 THEN Put1a(Sub, x.r, x.r, y.a) END
-      ELSE load(x); load(y); Put0(Sub, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
+        IF y.a # 0 THEN APut1a(Sub, x.r, x.r, y.a) END
+      ELSE load(x); load(y); APut0(Sub, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
       END
     END
   END AddOp;
@@ -630,9 +665,9 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     VAR e: INTEGER;
   BEGIN
     IF (x.mode = OAB.Const) & (y.mode = OAB.Const) THEN x.a := x.a * y.a
-    ELSIF (y.mode = OAB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); Put1(Lsl, x.r, x.r, e)
+    ELSIF (y.mode = OAB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); APut1(Lsl, x.r, x.r, e)
     ELSIF y.mode = OAB.Const THEN load(x); Put1a(Mul, x.r, x.r, y.a)
-    ELSIF (x.mode = OAB.Const) & (x.a >= 2) & (log2(x.a, e) = 1) THEN load(y); Put1(Lsl, y.r, y.r, e); x.mode := Reg; x.r := y.r
+    ELSIF (x.mode = OAB.Const) & (x.a >= 2) & (log2(x.a, e) = 1) THEN load(y); APut1(Lsl, y.r, y.r, e); x.mode := Reg; x.r := y.r
     ELSIF x.mode = OAB.Const THEN load(y); Put1a(Mul, y.r, y.r, x.a); x.mode := Reg; x.r := y.r
     ELSE load(x); load(y); Put0(Mul, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
     END
@@ -644,7 +679,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     IF op = OAS.div THEN
       IF (x.mode = OAB.Const) & (y.mode = OAB.Const) THEN
         IF y.a > 0 THEN x.a := x.a DIV y.a ELSE OAS.Mark("bad divisor") END
-      ELSIF (y.mode = OAB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); Put1(Asr, x.r, x.r, e)
+      ELSIF (y.mode = OAB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); APut1(Asr, x.r, x.r, e)
       ELSIF y.mode = OAB.Const THEN
         IF y.a > 0 THEN load(x); Put1a(Div, x.r, x.r, y.a) ELSE OAS.Mark("bad divisor") END
       ELSE load(y);
@@ -655,7 +690,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       IF (x.mode = OAB.Const) & (y.mode = OAB.Const) THEN
         IF y.a > 0 THEN x.a := x.a MOD y.a ELSE OAS.Mark("bad modulus") END
       ELSIF (y.mode = OAB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x);
-        IF e <= 16 THEN Put1(And, x.r, x.r, y.a-1) ELSE Put1(Lsl, x.r, x.r, 32-e); Put1(Ror, x.r, x.r, 32-e) END
+        IF e <= 16 THEN APut1(And, x.r, x.r, y.a-1) ELSE APut1(Lsl, x.r, x.r, 32-e); APut1(Ror, x.r, x.r, 32-e) END
       ELSIF y.mode = OAB.Const THEN
         IF y.a > 0 THEN load(x); Put1a(Div, x.r, x.r, y.a); Put0(Mov+U, x.r, 0, 0) ELSE OAS.Mark("bad modulus") END
       ELSE load(y);
@@ -682,7 +717,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE Singleton*(VAR x: Item);  (* x := {x} *)
   BEGIN
     IF x.mode = OAB.Const THEN x.a := LSL(1, x.a) 
-    ELSE load(x); Put1(Mov, RH, 0, 1); Put0(Lsl, x.r, RH,  x.r)
+    ELSE load(x); Put1(Mov, RH, 0, 1); APut0(Lsl, x.r, RH,  x.r)
     END
   END Singleton;
 
@@ -692,13 +727,13 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       IF x.a <= y.a THEN x.a := LSL(2, y.a) - LSL(1, x.a) ELSE x.a := 0 END
     ELSE
       IF (x.mode = OAB.Const) & (x.a <= 16) THEN x.a := LSL(-1, x.a)
-      ELSE load(x); Put1(Mov, RH, 0, -1); Put0(Lsl, x.r, RH, x.r)
+      ELSE load(x); Put1(Mov, RH, 0, -1); APut0(Lsl, x.r, RH, x.r)
       END ;
       IF (y.mode = OAB.Const) & (y.a < 16) THEN Put1(Mov, RH, 0, LSL(-2, y.a)); y.mode := Reg; y.r := RH; incR
-      ELSE load(y); Put1(Mov, RH, 0, -2); Put0(Lsl, y.r, RH, y.r)
+      ELSE load(y); Put1(Mov, RH, 0, -2); APut0(Lsl, y.r, RH, y.r)
       END ;
       IF x.mode = OAB.Const THEN
-        IF x.a # 0 THEN Put1(Xor, y.r, y.r, -1); Put1a(And, RH-1, y.r, x.a) END ;
+        IF x.a # 0 THEN APut1(Xor, y.r, y.r, -1); APut1a(And, RH-1, y.r, x.a) END ;
         x.mode := Reg; x.r := RH-1
       ELSE DEC(RH); Put0(Ann, RH-1, x.r, y.r)
       END
@@ -707,8 +742,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
 
   PROCEDURE In*(VAR x, y: Item);  (* x := x IN y *)
   BEGIN load(y);
-    IF x.mode = OAB.Const THEN Put1(Ror, y.r, y.r, (x.a + 1) MOD 20H); DEC(RH)
-    ELSE load(x); Put1(Add, x.r, x.r, 1); Put0(Ror, y.r, y.r, x.r); DEC(RH, 2)
+    IF x.mode = OAB.Const THEN APut1(Ror, y.r, y.r, (x.a + 1) MOD 20H); DEC(RH)
+    ELSE load(x); APut1(Add, x.r, x.r, 1); APut0(Ror, y.r, y.r, x.r); DEC(RH, 2)
     END ;
     SetCC(x, MI)
   END In;
@@ -726,16 +761,16 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       x.a := SYSTEM.VAL(INTEGER, xset)
     ELSIF y.mode = OAB.Const THEN
       load(x);
-      IF op = OAS.plus THEN Put1a(Ior, x.r, x.r, y.a)
+      IF op = OAS.plus THEN APut1a(Ior, x.r, x.r, y.a)
       ELSIF op = OAS.minus THEN Put1a(Ann, x.r, x.r, y.a)
-      ELSIF op = OAS.times THEN Put1a(And, x.r, x.r, y.a)
-      ELSIF op = OAS.rdiv THEN Put1a(Xor, x.r, x.r, y.a)
+      ELSIF op = OAS.times THEN APut1a(And, x.r, x.r, y.a)
+      ELSIF op = OAS.rdiv THEN APut1a(Xor, x.r, x.r, y.a)
       END ;
     ELSE load(x); load(y);
-      IF op = OAS.plus THEN Put0(Ior, RH-2, x.r, y.r)
+      IF op = OAS.plus THEN APut0(Ior, RH-2, x.r, y.r)
       ELSIF op = OAS.minus THEN Put0(Ann, RH-2, x.r, y.r)
-      ELSIF op = OAS.times THEN Put0(And, RH-2, x.r, y.r)
-      ELSIF op = OAS.rdiv THEN Put0(Xor, RH-2, x.r, y.r)
+      ELSIF op = OAS.times THEN APut0(And, RH-2, x.r, y.r)
+      ELSIF op = OAS.rdiv THEN APut0(Xor, RH-2, x.r, y.r)
       END ;
       DEC(RH); x.r := RH-1
     END 
@@ -769,8 +804,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN
     IF x.type.form = OAB.String THEN loadStringAdr(x) ELSE loadAdr(x) END ;
     IF y.type.form = OAB.String THEN loadStringAdr(y) ELSE loadAdr(y) END ;
-    Put2(Ldr+1, RH, x.r, 0); Put1(Add, x.r, x.r, 1);
-    Put2(Ldr+1, RH+1, y.r, 0); Put1(Add, y.r, y.r, 1);
+    Put2(Ldr+1, RH, x.r, 0); APut1(Add, x.r, x.r, 1);
+    Put2(Ldr+1, RH+1, y.r, 0); APut1(Add, y.r, y.r, 1);
     Put0(Cmp, RH+2, RH, RH+1); Put3(BC, NE, 2);
     Put1(Cmp, RH+2, RH, 0); Put3(BC, NE, -8);
     DEC(RH, 2); SetCC(x, relmap[op - OAS.eql])
@@ -809,7 +844,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
           END
         ELSE (*y  open array*) Put2(Ldr, RH, SP, y.a+4); s := y.type.base.size;  (*element size*)
           pc0 := pc; Put3(BC, EQ, 0);
-          IF s = 1 THEN Put1(Add, RH, RH, 3); Put1(Asr, RH, RH, 2)
+          IF s = 1 THEN APut1(Add, RH, RH, 3); APut1(Asr, RH, RH, 2)
           ELSIF s # 4 THEN Put1a(Mul, RH, RH, s DIV 4)
           END ;
           IF check THEN
@@ -820,9 +855,9 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       ELSIF x.type.form = OAB.Record THEN Put1a(Mov, RH, 0, x.type.size DIV 4)
       ELSE OAS.Mark("inadmissible assignment")
       END ;
-      Put2(Ldr, RH+1, y.r, 0); Put1(Add, y.r, y.r, 4);
-      Put2(Str, RH+1, x.r, 0); Put1(Add, x.r, x.r, 4);
-      Put1(Sub, RH, RH, 1); Put3(BC, NE, -6)
+      Put2(Ldr, RH+1, y.r, 0); APut1(Add, y.r, y.r, 4);
+      Put2(Str, RH+1, x.r, 0); APut1(Add, x.r, x.r, 4);
+      APut1(Sub, RH, RH, 1); Put3(BC, NE, -6)
     END ;
     RH := 0
   END StoreStruct;
@@ -836,9 +871,9 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       Put1(Cmp,RH, RH, y.b); Trap(LT, 3)
     END ;
     loadStringAdr(y);
-    Put2(Ldr, RH, y.r, 0); Put1(Add, y.r, y.r, 4);
-    Put2(Str, RH, x.r, 0); Put1(Add, x.r, x.r, 4);
-    Put1(Asr, RH, RH, 24); Put3(BC, NE,  -6);  RH := 0
+    Put2(Ldr, RH, y.r, 0); APut1(Add, y.r, y.r, 4);
+    Put2(Str, RH, x.r, 0); APut1(Add, x.r, x.r, 4);
+    APut1(Asr, RH, RH, 24); Put3(BC, NE,  -6);  RH := 0
    END CopyString;
   
   (* Code generation for parameters *)
@@ -888,7 +923,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END For1;
 
   PROCEDURE For2*(VAR x, y, w: Item);
-  BEGIN load(x); DEC(RH); Put1a(Add, x.r, x.r, w.a)
+  BEGIN load(x); DEC(RH); APut1a(Add, x.r, x.r, w.a)
   END For2;
 
   (* Branches, procedure calls, procedure prolog and epilog *)
@@ -924,7 +959,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE SaveRegs(r: INTEGER);  (* R[0 .. r-1]*)
     VAR r0: INTEGER;
   BEGIN (*r > 0*) r0 := 0;
-    Put1(Sub, SP, SP, r*4); INC(frame, 4*r);
+    APut1(Sub, SP, SP, r*4); INC(frame, 4*r);
     REPEAT Put2(Str, r0, SP, (r-r0-1)*4); INC(r0) UNTIL r0 = r
   END SaveRegs;
 
@@ -932,7 +967,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     VAR r0: INTEGER;
   BEGIN (*r > 0*) r0 := r;
     REPEAT DEC(r0); Put2(Ldr, r0, SP, (r-r0-1)*4) UNTIL r0 = 0;
-    Put1(Add, SP, SP, r*4); DEC(frame, 4*r)
+    APut1(Add, SP, SP, r*4); DEC(frame, 4*r)
   END RestoreRegs;
 
   PROCEDURE PrepCall*(VAR x: Item; VAR r: INTEGER);
@@ -954,7 +989,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       END
     ELSE
       IF x.mode <= OAB.Par THEN load(x); DEC(RH)
-      ELSE Put2(Ldr, RH, SP, 0); Put1(Add, SP, SP, 4); DEC(r); DEC(frame, 4)
+      ELSE Put2(Ldr, RH, SP, 0); APut1(Add, SP, SP, 4); DEC(r); DEC(frame, 4)
       END ;
       IF check THEN Trap(EQ, 5) END ;
       Put3(BLR, 7, RH)
@@ -1038,7 +1073,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN loadAdr(x); zr := RH; Put2(Ldr, RH, x.r, 0); incR;
     IF inorex = 0 THEN op := Ior ELSE op := Ann END ;
     IF y.mode = OAB.Const THEN Put1a(op, zr, zr, LSL(1, y.a))
-    ELSE load(y); Put1(Mov, RH, 0, 1); Put0(Lsl, y.r, RH, y.r); Put0(op, zr, zr, y.r); DEC(RH)
+    ELSE load(y); Put1(Mov, RH, 0, 1); APut0(Lsl, y.r, RH, y.r); Put0(op, zr, zr, y.r); DEC(RH)
     END ;
     Put2(Str, zr, x.r, 0); DEC(RH, 2)
   END Include;
@@ -1060,14 +1095,14 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE Pack*(VAR x, y: Item);
     VAR z: Item;
   BEGIN z := x; load(x); load(y);
-    Put1(Lsl, y.r, y.r, 23); Put0(Add, x.r, x.r, y.r); DEC(RH); Store(z, x)
+    APut1(Lsl, y.r, y.r, 23); APut0(Add, x.r, x.r, y.r); DEC(RH); Store(z, x)
   END Pack;
 
   PROCEDURE Unpk*(VAR x, y: Item);
     VAR z, e0: Item;
   BEGIN  z := x; load(x); e0.mode := Reg; e0.r := RH; e0.type := OAB.intType;
-    Put1(Asr, RH, x.r, 23); Put1(Sub, RH, RH, 127); Store(y, e0); incR;
-    Put1(Lsl, RH, RH, 23); Put0(Sub, x.r, x.r, RH); Store(z, x)
+    APut1(Asr, RH, x.r, 23); APut1(Sub, RH, RH, 127); Store(y, e0); incR;
+    APut1(Lsl, RH, RH, 23); APut0(Sub, x.r, x.r, RH); Store(z, x)
   END Unpk;
 
   PROCEDURE Led*(VAR x: Item);
@@ -1090,9 +1125,9 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       IF check THEN Trap(LT, 3) END ;
       Put3(BC, EQ, 6)
     END ;
-    Put2(Ldr, RH, x.r, 0); Put1(Add, x.r, x.r, 4);
-    Put2(Str, RH, y.r, 0); Put1(Add, y.r, y.r, 4);
-    Put1(Sub, z.r, z.r, 1); Put3(BC, NE, -6); DEC(RH, 3)
+    Put2(Ldr, RH, x.r, 0); APut1(Add, x.r, x.r, 4);
+    Put2(Str, RH, y.r, 0); APut1(Add, y.r, y.r, 4);
+    APut1(Sub, z.r, z.r, 1); Put3(BC, NE, -6); DEC(RH, 3)
   END Copy;
 
   PROCEDURE LDPSR*(VAR x: Item);
@@ -1112,14 +1147,14 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN
     IF x.mode = OAB.Const THEN x.a := ABS(x.a)
     ELSE load(x);
-      IF x.type.form = OAB.Real THEN Put1(Lsl, x.r, x.r, 1); Put1(Ror, x.r, x.r, 1)
-      ELSE Put1(Cmp, x.r, x.r, 0); Put3(BC, GE, 2); APut1(Mov, RH, 0, 0); Put0(Sub, x.r, RH, x.r)
+      IF x.type.form = OAB.Real THEN APut1(Lsl, x.r, x.r, 1); APut1(Ror, x.r, x.r, 1)
+      ELSE Put1(Cmp, x.r, x.r, 0); Put3(BC, GE, 2); APut1(Mov, RH, 0, 0); APut0(Sub, x.r, RH, x.r)
       END
     END
   END Abs;
 
   PROCEDURE Odd*(VAR x: Item);
-  BEGIN load(x); Put1(And, x.r, x.r, 1); SetCC(x, NE); DEC(RH)
+  BEGIN load(x); APut1(And, x.r, x.r, 1); SetCC(x, NE); DEC(RH)
   END Odd;
 
   PROCEDURE Floor*(VAR x: Item);
@@ -1154,11 +1189,11 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END Shift;
 
   PROCEDURE ADC*(VAR x, y: Item);
-  BEGIN load(x); load(y); Put0(Add+2000H, x.r, x.r, y.r); DEC(RH)
+  BEGIN load(x); load(y); APut0(Add+2000H, x.r, x.r, y.r); DEC(RH)
   END ADC;
 
   PROCEDURE SBC*(VAR x, y: Item);
-  BEGIN load(x); load(y); Put0(Sub+2000H, x.r, x.r, y.r); DEC(RH)
+  BEGIN load(x); load(y); APut0(Sub+2000H, x.r, x.r, y.r); DEC(RH)
   END SBC;
 
   PROCEDURE UML*(VAR x, y: Item);
@@ -1167,8 +1202,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
 
   PROCEDURE Bit*(VAR x, y: Item);
   BEGIN load(x); Put2(Ldr, x.r, x.r, 0);
-    IF y.mode = OAB.Const THEN Put1(Ror, x.r, x.r, y.a+1); DEC(RH)
-    ELSE load(y); Put1(Add, y.r, y.r, 1); Put0(Ror, x.r, x.r, y.r); DEC(RH, 2)
+    IF y.mode = OAB.Const THEN APut1(Ror, x.r, x.r, y.a+1); DEC(RH)
+    ELSE load(y); APut1(Add, y.r, y.r, 1); APut0(Ror, x.r, x.r, y.r); DEC(RH, 2)
     END ;
     SetCC(x, MI)
   END Bit;
