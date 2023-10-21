@@ -317,7 +317,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       IF format = OAB.BIN   THEN  END;
       IF format = OAB.RSC64 THEN  END;
       IF format = OAB.ELF64 THEN  END;
-      IF format = OAB.MACHO THEN Macho.Write( R , K, I, DataEnd, CodeEnd, ProgEntry ) END;
+      IF format = OAB.MACHO THEN Macho.Write( R, F , K, I, DataEnd, CodeEnd, ProgEntry ) END;
       IF format = OAB.PE64  THEN  END;
 
 (*

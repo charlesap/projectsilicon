@@ -2,6 +2,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
   IMPORT SYSTEM, OAB, Files;
 
   CONST
+    b = 10000H;
     
   TYPE
 
@@ -154,47 +155,16 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
           WR( R, 0000000000000000H );
   END ExitCode;
 
-  PROCEDURE Write*(VAR R: Files.Rider; K: OAB.Kbin; I: OAB.Mbin; DataEnd, CodeEnd, ProgEntry: INTEGER);
-    VAR i,b,p,v: INTEGER;
+  PROCEDURE Write*(VAR R: Files.Rider; F: Files.File; K: OAB.Kbin; I: OAB.Mbin; DataEnd, CodeEnd, ProgEntry: INTEGER);
+    VAR i,p,v: INTEGER;
   BEGIN
 
 
-    b:=10000H;
 
 
-    Header( R , 380H + ((13H * 8)*2), 19 ); 
-    Segment( R, 0, "__PAGEZERO", 0,           100000000H,     0,          0,     0, 0 ); 
-    Segment( R, 2, "__TEXT",                  100000000H, 4000H,          0, 4000H, 500000005H, 0 );
-    Section( R,    "__text", "__TEXT",        100003F90H,   1CH, 400003F90H,     0,  80000400H    );
-    Section( R,    "__unwind_info", "__TEXT", 100003FACH,   48H, 400003FACH,     0,         0     );
-    Segment( R, 1, "__K000",                  100004000H, 4000H,      4000H, 4000H, 300000003H, 0 );
-    Section( R,    "__k000", "__K000",        100004000H, 4000H, 400004000H,     0,         0     );
-    Segment( R, 1, "__D000",                  100008000H, 4000H,      8000H, 4000H, 300000003H, 0 );
-    Section( R,    "__d000", "__D000",        100008000H, 4000H, 400008000H,     0,         0     );
-    Segment( R, 1, "__C000",                  10000C000H, 4000H,     0C000H, 4000H, 500000005H, 0 );
-    Section( R,    "__c000", "__C000",        10000C000H, 4000H, 40000C000H,     0,  80000400H    );
-    Segment( R, 0, "__LINKEDIT", b + 100000000H, 4000H, b, 1E1H, 100000001H, 0 );
-    Mysterious( R, TRUE, 34H, 38H, b );              (* dyld_chained_fixups  *)
-    Mysterious( R, TRUE, 33H, 38H, b + 38H );        (* dyld_exports_trie    *)
-    Symbols( R, 3, b + 78H, 28H, b + 0A8H );
-    SymbolTableInfo( R, 0, 0, 3, 0, 0, 3 );
-    LoadDylinker( R );
-    ApplicationUUID( R, 0F931B7FDE38F91CCH, 239DEFA4E546FD8AH );
-    MinimumOS( R );
-    Mysterious( R, FALSE, 2AH, 0, 0 );      (* source version used to build binary *)
-    MainEntry( R, 3FA0H, 0 );
-    LinkLibSystem( R );
-    Mysterious( R, FALSE, 26H, 8H, b + 70H ); (* compressed table of function start addresses *)
-    Mysterious( R, FALSE, 29H, 0, b + 78H );  (* table of non-instructions in __text *)
-    CodeSignature( R, 111H, b + 0D0H );
-
-    (* post-header padding *)
-    i := 0; WHILE i < (1937 - 39H ) DO WR( R, 0000000000000000H ); INC(i) END;
-    ExitCode( R, ProgEntry );
-
-    (* kernel / runtime elements at 4000H *)                                  
+    (* zero values before 4000H, kernel / runtime elements at 4000H to 8000H *)                                  
     p:=SYSTEM.VAL(INTEGER,K);
-    i := 0; WHILE i < 4000H DO SYSTEM.GET(p,v); WR( R, v ); INC(p,8); INC(i,8) END;
+    i := 0; WHILE i < 8000H DO SYSTEM.GET(p,v); WR( R, v ); INC(p,8); INC(i,8) END;
                                                      
     (* module data at 8000H *)
     i:=0; WHILE i <  4000H - DataEnd DO WR( R, 0 ); INC(i,8); END; (* pad so data ends at 0C000H *)
@@ -267,6 +237,40 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     WR( R, 97350ADD9EE6EBF5H );
     WR( R,0E6B960A1A0A512BDH );
     Files.Write( R, 0DDH );    
+
+    Files.Set( R, F, 0 );
+
+    Header( R , 380H + ((13H * 8)*2), 19 ); (* 1200 or 4B0H *) 
+    Segment( R, 0, "__PAGEZERO", 0,           100000000H,     0,          0,     0, 0 ); 
+    Segment( R, 2, "__TEXT",                  100000000H, 4000H,          0, 4000H, 500000005H, 0 );
+    Section( R,    "__text", "__TEXT",        100003F90H,   1CH, 400003F90H,     0,  80000400H    );
+    Section( R,    "__unwind_info", "__TEXT", 100003FACH,   48H, 400003FACH,     0,         0     );
+    Segment( R, 1, "__K000",                  100004000H, 4000H,      4000H, 4000H, 300000003H, 0 );
+    Section( R,    "__k000", "__K000",        100004000H, 4000H, 400004000H,     0,         0     );
+    Segment( R, 1, "__D000",                  100008000H, 4000H,      8000H, 4000H, 300000003H, 0 );
+    Section( R,    "__d000", "__D000",        100008000H, 4000H, 400008000H,     0,         0     );
+    Segment( R, 1, "__C000",                  10000C000H, 4000H,     0C000H, 4000H, 500000005H, 0 );
+    Section( R,    "__c000", "__C000",        10000C000H, 4000H, 40000C000H,     0,  80000400H    );
+    Segment( R, 0, "__LINKEDIT", b + 100000000H, 4000H, b, 1E1H, 100000001H, 0 );
+    Mysterious( R, TRUE, 34H, 38H, b );              (* dyld_chained_fixups  *)
+    Mysterious( R, TRUE, 33H, 38H, b + 38H );        (* dyld_exports_trie    *)
+    Symbols( R, 3, b + 78H, 28H, b + 0A8H );
+    SymbolTableInfo( R, 0, 0, 3, 0, 0, 3 );
+    LoadDylinker( R );
+    ApplicationUUID( R, 0F931B7FDE38F91CCH, 239DEFA4E546FD8AH );
+    MinimumOS( R );
+    Mysterious( R, FALSE, 2AH, 0, 0 );      (* source version used to build binary *)
+    MainEntry( R, 3FA0H, 0 );
+    LinkLibSystem( R );
+    Mysterious( R, FALSE, 26H, 8H, b + 70H ); (* compressed table of function start addresses *)
+    Mysterious( R, FALSE, 29H, 0, b + 78H );  (* table of non-instructions in __text *)
+    CodeSignature( R, 111H, b + 0D0H );
+
+    (* post-header padding *)
+    i := 0; WHILE i < (1937 - 39H ) DO WR( R, 0000000000000000H ); INC(i) END;
+    ExitCode( R, ProgEntry );
+
+
                                
   END Write;
  
