@@ -1,0 +1,7 @@
+MODULE G;
+IMPORT F;
+
+BEGIN
+  F.Q 
+END G.
+
