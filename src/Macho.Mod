@@ -169,11 +169,6 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     VAR i,p,v: INTEGER;
   BEGIN
 
-    (* zero values before 4000H, kernel / runtime elements at 4000H to 8000H *) (*TODO: Write kernel page last*)                                 
-(*
-    p:=SYSTEM.VAL(INTEGER,K);
-    i := 0; WHILE i < 8000H DO SYSTEM.GET(p,v); WR( v ); INC(p,8); INC(i,8) END; 
-*)
                                                      
     (* module data at 8000H *)
     i:=0; WHILE i <  4000H - DataEnd DO WR( 0 ); INC(i,8); END; (* pad so data ends at 0C000H *)
@@ -187,7 +182,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
 
   PROCEDURE Finish*(VAR F: Files.File; K: OAB.Kbin; ProgEntry: INTEGER);
-    VAR i: INTEGER;
+    VAR i,p,v: INTEGER;
   BEGIN
                          
     (* misc bookkeeping to satisfy the loader *)
@@ -285,6 +280,15 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     (* post-header padding *)
     i := 0; WHILE i < (1937 - 39H ) DO WR( 0000000000000000H ); INC(i) END;
     ExitCode( ProgEntry );
+
+    (* Kernel data page *)
+
+    (* zero values before 4000H, kernel / runtime elements at 4000H to 8000H *) (*TODO: Write kernel page last*)                                 
+
+    p:=SYSTEM.VAL(INTEGER,K);
+    i := 0; WHILE i < 4000H DO SYSTEM.GET(p,v); WR( v ); INC(p,8); INC(i,8) END; 
+
+
   END Finish;
  
 
