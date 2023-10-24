@@ -18,6 +18,12 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         data, code, imp, cmd, ent, ptr, unused: INTEGER  (*addresses*)  (* 56 *)
     END ;
 
+    BFOps = RECORD
+        Prepare : PROCEDURE (F: Files.File);
+        Write : PROCEDURE (I: OAB.Mbin; DataEnd, CodeEnd, ProgEntry: INTEGER);
+        Finish : PROCEDURE (VAR F: Files.File; K: OAB.Kbin; ProgEntry: INTEGER)
+    END;
+
   VAR
     binroot, M: Module;
     modid: OAS.Ident; 
@@ -26,7 +32,8 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     limit: INTEGER;
     Mlist: ARRAY 16 OF ModuleName;
     I: OAB.Mbin;
-    K: OAB.Kbin;   
+    K: OAB.Kbin;
+    bfo: BFOps;   
 
   PROCEDURE Emit(s: ARRAY OF CHAR);
     VAR ss: ARRAY 128 OF CHAR;
@@ -278,6 +285,19 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   RETURN TRUE
   END LinkOne;
 
+  PROCEDURE SetFormat( format: INTEGER);
+  BEGIN
+      IF format = OAB.BIN   THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL END;
+      IF format = OAB.RSC64 THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL END;
+      IF format = OAB.ELF64 THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL END;
+      IF format = OAB.MACHO THEN
+        bfo.Prepare := Macho.Prepare;
+        bfo.Write := Macho.Write;
+        bfo.Finish := Macho.Finish;
+      END;
+      IF format = OAB.PE64  THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL END;
+  END SetFormat;
+
 
   PROCEDURE Link*(name: ARRAY OF CHAR; format: INTEGER);
 
@@ -285,7 +305,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       DataEnd,CodeEnd,ProgEntry: INTEGER;
       Lname : ModuleName;
       fname: OAS.Ident;
-      F: Files.File;  R: Files.Rider;
+      F: Files.File;
       M, p : Module; 
       i,v : INTEGER;
       ok: BOOLEAN;
@@ -293,12 +313,19 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     NEW(K);
     NEW(I);
 
+    SetFormat( format );
+
     binStart := SYSTEM.VAL(INTEGER,I);
     kStart := SYSTEM.VAL(INTEGER,K);
     MTOrg := kStart + 128; binroot := NIL; res:= 0;
     limit:= binStart + SYSTEM.SIZE(OAB.MbinDesc); 
     binAllocPtr :=  binStart;
     i:= 0; WHILE i < 4096 DO SYSTEM.PUT(kStart+i, 0 ); INC(i,8) END;   
+
+    OAB.MakeFileName(fname, name, ".bin");
+    F := Files.New(fname); 
+    bfo.Prepare( F );
+
     ok := LinkOne( name , M, DataEnd, CodeEnd, ProgEntry );
     IF ok THEN
       SYSTEM.PUT(kStart + 40,SYSTEM.VAL(INTEGER,binroot) - binStart );
@@ -306,19 +333,13 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 (*
       p:=SYSTEM.VAL(Modules.Module,binroot);
 *)
-      OAB.MakeFileName(fname, name, ".bin");
-      F := Files.New(fname); 
-      Files.Set(R, F, 0);
 
       i:=SYSTEM.VAL(INTEGER,I);
       CodeEnd := i - binStart;
 
 
-      IF format = OAB.BIN   THEN  END;
-      IF format = OAB.RSC64 THEN  END;
-      IF format = OAB.ELF64 THEN  END;
-      IF format = OAB.MACHO THEN Macho.Write( R, F , K, I, DataEnd, CodeEnd, ProgEntry ) END;
-      IF format = OAB.PE64  THEN  END;
+      bfo.Write( I, DataEnd, CodeEnd, ProgEntry );
+      bfo.Finish( F, K, ProgEntry );
 
 (*
 
@@ -351,6 +372,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       Files.Register(F); Files.Close(F);
       Emit( " linked."); EmitLn
     ELSE
+      Files.Close(F);
       Emit( " not linked."); EmitLn
     END
   END Link;
@@ -359,212 +381,4 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 BEGIN 
 (*  Emit("Silicon Oberon Linker   2023.09.24"); EmitLn *)
 END OAL.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
