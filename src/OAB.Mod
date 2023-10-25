@@ -372,15 +372,15 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
       END ;
       obj := obj.next
     END ;
-    REPEAT Write(R, 0) UNTIL Files.Length(F) MOD 4 = 0;
+    REPEAT Write(R, 0) UNTIL Files.Length(F) MOD 8 = 0;
     FOR Ref := Record+1 TO maxTypTab-1 DO typtab[Ref] := NIL END ;
     Files.Set(R, F, 0); sum := 0; Files.ReadInt(R, x);  (* compute key (checksum) *)
     WHILE ~R.eof DO sum := sum + x; Files.ReadInt(R, x) END ;
     F1 := Files.Old(filename); (*sum is new key*)
-    IF F1 # NIL THEN Files.Set(R1, F1, 4); Files.ReadInt(R1, oldkey) ELSE oldkey := sum+1 END ;
+    IF F1 # NIL THEN Files.Set(R1, F1, 8); Files.ReadInt(R1, oldkey) ELSE oldkey := sum+1 END ;
     IF sum # oldkey THEN
       IF newSF OR (F1 = NIL) THEN
-        key := sum; newSF := TRUE; Files.Set(R, F, 4); Files.WriteInt(R, sum); Files.Register(F)  (*insert checksum*)
+        key := sum; newSF := TRUE; Files.Set(R, F, 8); Files.WriteInt(R, sum); Files.Register(F)  (*insert checksum*)
       ELSE OAS.Mark("new symbol file inhibited")
       END
     ELSE newSF := FALSE; key := sum
