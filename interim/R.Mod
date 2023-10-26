@@ -1,0 +1,21 @@
+MODULE R;
+
+TYPE 
+  RP = POINTER TO RDesc;
+
+  RDesc = RECORD
+    i:INTEGER
+  END:
+
+
+PROCEDURE Q* (t:INTEGER);
+  VAR r:RP;
+BEGIN
+  rp.i:=t
+END Q;
+
+
+BEGIN
+  Q(10)
+END R.
+

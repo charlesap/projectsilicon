@@ -633,7 +633,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     ELSIF sym = OAS.comma THEN OAS.Get(sym); ArrayType(typ.base)
     ELSE OAS.Mark("missing OF"); typ.base := OAB.intType
     END ;
-    typ.size := (len * typ.base.size + 3) DIV 4 * 4;
+    typ.size := (len * typ.base.size + 7) DIV 8 * 8;
     typ.form := OAB.Array; typ.len := len; type := typ
   END ArrayType;
 
@@ -673,13 +673,13 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       END ;
       Check(OAS.colon, "colon expected"); Type(tp);
       IF (tp.form = OAB.Array) & (tp.len < 0) THEN OAS.Mark("dyn array not allowed") END ;
-      IF tp.size > 1 THEN offset := (offset+3) DIV 4 * 4 END ;
+      IF tp.size > 1 THEN offset := (offset+7) DIV 8 * 8 END ;
       offset := offset + n * tp.size; off := offset; obj0 := obj;
       WHILE obj0 # bot DO obj0.type := tp; obj0.lev := 0; off := off - tp.size; obj0.val := off; obj0 := obj0.next END ;
       bot := obj;
       IF sym = OAS.semicolon THEN OAS.Get(sym) ELSIF sym # OAS.end THEN OAS.Mark(" ; or END") END
     END ;
-    typ.form := OAB.Record; typ.dsc := bot; typ.size := (offset + 3) DIV 4 * 4; type := typ
+    typ.form := OAB.Record; typ.dsc := bot; typ.size := (offset + 7) DIV 8 * 8; type := typ
   END RecordType;
 
   PROCEDURE FPSection(VAR adr: INTEGER; VAR nofpar: INTEGER);
@@ -840,7 +840,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
         obj := first;
         WHILE obj # NIL DO
           obj.type := tp; obj.lev := level;
-          IF tp.size > 1 THEN varsize := (varsize + 3) DIV 4 * 4 (*align*) END ;
+          IF tp.size > 1 THEN varsize := (varsize + 7) DIV 8 * 8 (*align*) END ;
           obj.val := varsize; varsize := varsize + obj.type.size;
           IF obj.expo THEN obj.exno := exno; INC(exno) END ;
           obj := obj.next
@@ -848,7 +848,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
         Check(OAS.semicolon, "; missing")
       END
     END ;
-    varsize := (varsize + 3) DIV 4 * 4;
+    varsize := (varsize + 7) DIV 8 * 8;
     ptbase := pbsList;
     WHILE ptbase # NIL DO
       IF ptbase.type.base.form = OAB.Int THEN OAS.Mark("undefined pointer base of") END ;
@@ -940,7 +940,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
         WHILE sym = OAS.comma DO OAS.Get(sym); Import END ;
         Check(OAS.semicolon, "; missing")
       END ;
-      OAG.Open(version, verbose); Declarations(dc); OAG.SetDataSize((dc + 3) DIV 4 * 4);      (* TYPES and VARS *)
+      OAG.Open(version, verbose); Declarations(dc); OAG.SetDataSize((dc + 7) DIV 8 * 8);      (* TYPES and VARS *)
       WHILE sym = OAS.procedure DO ProcedureDecl; Check(OAS.semicolon, "no ;") END ; (* PROCEDURES *)
       OAG.Header;                                                                    
       IF sym = OAS.begin THEN OAS.Get(sym); StatSequence END ;                       (* BEGIN *)
