@@ -181,8 +181,8 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
   END Write;
 
 
-  PROCEDURE Finish*(VAR F: Files.File; K: OAB.Kbin; ProgEntry: INTEGER);
-    VAR i,p,v: INTEGER;
+  PROCEDURE Finish*(VAR F: Files.File; K: OAB.Kbin; C, ProgEntry: INTEGER);
+    VAR i,p,v,x: INTEGER;
   BEGIN
                          
     (* misc bookkeeping to satisfy the loader *)
@@ -251,21 +251,28 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
     Files.Set( R, F, 0 );
 
-    Header( 380H + ((13H * 8)*2), 19 ); (* 1200 or 4B0H *) 
-    Segment( 0, "__PAGEZERO", 0,           100000000H,     0,          0,     0, 0 ); 
-    Segment( 2, "__TEXT",                  100000000H, 4000H,          0, 4000H, 500000005H, 0 );
-    Section(    "__text", "__TEXT",        100003F90H,   1CH, 400003F90H,     0,  80000400H    );
-    Section(    "__unwind_info", "__TEXT", 100003FACH,   48H, 400003FACH,     0,         0     );
-    Segment( 1, "__K000",                  100004000H, 4000H,      4000H, 4000H, 300000003H, 0 );
-    Section(    "__k000", "__K000",        100004000H, 4000H, 400004000H,     0,         0     );
-    Segment( 1, "__D000",                  100008000H, 4000H,      8000H, 4000H, 300000003H, 0 );
-    Section(    "__d000", "__D000",        100008000H, 4000H, 400008000H,     0,         0     );
-    Segment( 1, "__C000",                  10000C000H, 4000H,     0C000H, 4000H, 500000005H, 0 );
-    Section(    "__c000", "__C000",        10000C000H, 4000H, 40000C000H,     0,  80000400H    );
-    Segment( 0, "__LINKEDIT", b + 100000000H, 4000H, b, 1E1H, 100000001H, 0 );
-    Mysterious( TRUE, 34H, 38H, b );              (* dyld_chained_fixups  *)
-    Mysterious( TRUE, 33H, 38H, b + 38H );        (* dyld_exports_trie    *)
-    Symbols( 3, b + 78H, 28H, b + 0A8H );
+    Header( 380H + ((13H * 8)*2)*C, 19+((C-1)*2) ); (* 1200 or 4B0H *) 
+    Segment( 0, "__PAGEZERO", 0,           100000000H,         0,          0,         0, 0 ); 
+    Segment( 2, "__TEXT",                  100000000H,     4000H,          0,     4000H, 500000005H, 0 );
+    Section(    "__text", "__TEXT",        100003F90H,       1CH, 400003F90H,         0,  80000400H    );
+    Section(    "__unwind_info", "__TEXT", 100003FACH,       48H, 400003FACH,         0,         0     );
+    Segment( 1, "__K000",                  100004000H,     4000H,      4000H,     4000H, 300000003H, 0 );
+    Section(    "__k000", "__K000",        100004000H,     4000H, 400004000H,         0,         0     );
+    Segment( 1, "__D000",                  100008000H,     4000H,      8000H,     4000H, 300000003H, 0 );
+    Section(    "__d000", "__D000",        100008000H,     4000H, 400008000H,         0,         0     );
+    Segment( 1, "__C000",                  10000C000H,     4000H,     0C000H,     4000H, 500000005H, 0 );
+    Section(    "__c000", "__C000",        10000C000H,     4000H, 40000C000H,         0,  80000400H    );
+    i:=1; WHILE i < C DO   x:=8000H*(i);
+      Segment( 1, "__D001",                100008000H + x, 4000H,      8000H + x, 4000H, 300000003H, 0 );
+      Section(    "__d001", "__D001",      100008000H + x, 4000H, 400008000H + x,     0,         0     );
+      Segment( 1, "__C001",                10000C000H + x, 4000H,     0C000H + x, 4000H, 500000005H, 0 );
+      Section(    "__c001", "__C001",      10000C000H + x, 4000H, 40000C000H + x,     0,  80000400H    );
+      INC(i)
+    END;                 x:=(8000H*(C-1)); 
+    Segment( 0, "__LINKEDIT", b + 100000000H, 4000H, b+x, 1E1H, 100000001H, 0 );
+    Mysterious( TRUE, 34H, 38H, b + x  );              (* dyld_chained_fixups  *)
+    Mysterious( TRUE, 33H, 38H, b + 38H + x  );        (* dyld_exports_trie    *)
+    Symbols( 3, b + 78H + x, 28H, b + 0A8H + x  );
     SymbolTableInfo( 0, 0, 3, 0, 0, 3 );
     LoadDylinker();
     ApplicationUUID( 0F931B7FDE38F91CCH, 239DEFA4E546FD8AH );
@@ -273,9 +280,9 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     Mysterious( FALSE, 2AH, 0, 0 );      (* source version used to build binary *)
     MainEntry( 3FA0H, 0 );
     LinkLibSystem();
-    Mysterious( FALSE, 26H, 8H, b + 70H ); (* compressed table of function start addresses *)
-    Mysterious( FALSE, 29H, 0, b + 78H );  (* table of non-instructions in __text *)
-    CodeSignature( 111H, b + 0D0H );
+    Mysterious( FALSE, 26H, 8H, b + 70H + x ); (* compressed table of function start addresses *)
+    Mysterious( FALSE, 29H, 0, b + 78H + x );  (* table of non-instructions in __text *)
+    CodeSignature( 111H, b + 0D0H + x );
 
     (* post-header padding *)
     i := 0; WHILE i < (1937 - 39H ) DO WR( 0000000000000000H ); INC(i) END;
@@ -283,8 +290,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
     (* Kernel data page *)
 
-    (* zero values before 4000H, kernel / runtime elements at 4000H to 8000H *) (*TODO: Write kernel page last*)                                 
-
+    (* write kernel / runtime elements at 4000H to 8000H *) 
     p:=SYSTEM.VAL(INTEGER,K);
     i := 0; WHILE i < 4000H DO SYSTEM.GET(p,v); WR( v ); INC(p,8); INC(i,8) END; 
 
