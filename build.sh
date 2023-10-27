@@ -21,6 +21,13 @@ codesign -s - F.bin
 ../obnc/oac -ms G.Mod
 codesign -s - G.bin
 objdump -d -j __c000 G.bin
+objdump -d -j __c001 G.bin
+
+../obnc/oac -ms H.Mod
+codesign -s - H.bin
+objdump -d -j __c000 H.bin
+objdump -d -j __c001 H.bin
+objdump -d -j __c002 H.bin
 
 ../obnc/oac -ms V.Mod
 codesign -s - V.bin

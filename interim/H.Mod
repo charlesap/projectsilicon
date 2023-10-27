@@ -1,0 +1,8 @@
+MODULE H;
+IMPORT F,G;
+
+BEGIN
+  F.Q;
+  G.Q 
+END H.
+
