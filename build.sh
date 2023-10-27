@@ -29,23 +29,29 @@ objdump -d -j __c000 V.bin
 #../obnc/oac -ms M.Mod
 #codesign -s - M.bin
 #objdump -d -j __c000 M.bin
-#../obnc/oac -ms Out.Mod
-##codesign -s - Out.bin
-##objdump -d -j __c000 Out.bin
-#../obnc/oac -ms Files.Mod
-##codesign -s - Files.bin
-##objdump -d -j __c000 Files.bin
-#../obnc/oac -s Fonts.Mod
-#../obnc/oac -s Texts.Mod
-#../obnc/oac -s OAS.Mod
-#../obnc/oac -s OAB.Mod
-#../obnc/oac -s OAG.Mod
-#../obnc/oac -s Macho.Mod
-#../obnc/oac -s OAL.Mod
-#../obnc/oac -s OAP.Mod
-#../obnc/oac -ms oac.Mod
+../obnc/oac -ms Out.Mod
+#codesign -s - Out.bin
+#objdump -d -j __c000 Out.bin
+../obnc/oac -ms Files.Mod
+#codesign -s - Files.bin
+#objdump -d -j __c000 Files.bin
+../obnc/oac -s Fonts.Mod
+../obnc/oac -s Texts.Mod
+../obnc/oac -s OAS.Mod
+../obnc/oac -s OAB.Mod
+../obnc/oac -s OAG.Mod
+../obnc/oac -s Macho.Mod
+../obnc/oac -s OAL.Mod
+../obnc/oac -s OAP.Mod
+../obnc/oac -s oac.Mod
 #as exit.asm -o exit.o       #dummy compiler until interim one works
 #ld exit.o -L /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/ -lSystem -o oac
+
+../obnc/oac -ms R.Mod
+codesign -s - R.bin
+objdump -d -j __c000 R.bin
+
+
 
 popd 2>&1 >> /dev/null
 

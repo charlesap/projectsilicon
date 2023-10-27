@@ -253,7 +253,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
         Emit(" ");Emit(modname);
         thismod := ThisModule(modid, modid1, TRUE, key); thismod.rdo := TRUE;
         Read(R, class); (*version key*)
-        IF class # versionkey THEN OAS.Mark("wrong version") END ;
+        IF class # versionkey THEN Emit("<");Out.Hex(class);Emit(" >"); OAS.Mark("wrong version") END ;
         Read(R, class);
         WHILE class # 0 DO
           NEW(obj); obj.class := class; Files.ReadString(R, obj.name);
@@ -377,10 +377,10 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
     Files.Set(R, F, 0); sum := 0; Files.ReadInt(R, x);  (* compute key (checksum) *)
     WHILE ~R.eof DO sum := sum + x; Files.ReadInt(R, x) END ;
     F1 := Files.Old(filename); (*sum is new key*)
-    IF F1 # NIL THEN Files.Set(R1, F1, 8); Files.ReadInt(R1, oldkey) ELSE oldkey := sum+1 END ;
+    IF F1 # NIL THEN Files.Set(R1, F1, 0); Files.ReadInt(R1, oldkey); Files.ReadInt(R1, oldkey) ELSE oldkey := sum+1 END ;
     IF sum # oldkey THEN
       IF newSF OR (F1 = NIL) THEN
-        key := sum; newSF := TRUE; Files.Set(R, F, 8); Files.WriteInt(R, sum); Files.Register(F)  (*insert checksum*)
+        key := sum; newSF := TRUE; Files.Set(R, F, 0); Files.WriteInt(R, 0);  Files.WriteInt(R, sum); Files.Register(F)  (*insert checksum*)
       ELSE OAS.Mark("new symbol file inhibited")
       END
     ELSE newSF := FALSE; key := sum

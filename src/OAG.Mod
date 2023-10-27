@@ -86,12 +86,33 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     data[pc*4+3] := i DIV 1000000H MOD 100H;
   END PutData;
 
+  PROCEDURE Put2Data( pc, i: INTEGER);
+    VAR I: INTEGER;
+  BEGIN
+    data[pc*4] := i MOD 100H;
+    data[pc*4+1] := i DIV 100H MOD 100H;
+    data[pc*4+2] := i DIV 10000H MOD 100H;
+    data[pc*4+3] := i DIV 1000000H MOD 100H;
+    data[pc*4+4] := i DIV 100000000H MOD 100H;
+    data[pc*4+5] := i DIV 10000000000H MOD 100H;
+    data[pc*4+6] := i DIV 1000000000000H MOD 100H;
+    data[pc*4+7] := i DIV 100000000000000H MOD 100H;
+  END Put2Data;
+
   PROCEDURE GetData( pc: INTEGER):INTEGER;
     VAR I: INTEGER;
   BEGIN 
     I:=  data[pc*4] + data[pc*4+1]*100H + data[pc*4+2]*10000H + data[pc*4+3]*1000000H;
     RETURN I
   END GetData;
+
+  PROCEDURE Get2Data( pc: INTEGER):INTEGER;
+    VAR I: INTEGER;
+  BEGIN 
+    I:=  data[pc*4] + data[pc*4+1]*100H + data[pc*4+2]*10000H + data[pc*4+3]*1000000H
+       + data[pc*4+4]*100000000H + data[pc*4+5]*10000000000H + data[pc*4+6]*1000000000000H + data[pc*4+7]*100000000000000H;
+    RETURN I
+  END Get2Data;
 
   PROCEDURE Put0(op, a, b, c: INTEGER);
     VAR i: INTEGER;
@@ -560,8 +581,8 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   PROCEDURE Q(T: OAB.Type; VAR dcw: INTEGER);
   BEGIN (*one entry of type descriptor extension table*)
     IF T.base # NIL THEN
-      Q(T.base, dcw); PutData(dcw, (T.mno*1000H + T.len) * 1000H + dcw - fixorgT);
-      fixorgT := dcw; INC(dcw)
+      Q(T.base, dcw); Put2Data(dcw, (T.mno*1000H + T.len) * 1000H + dcw - fixorgT);
+      fixorgT := dcw; INC(dcw,2)
     END
   END Q;
 
@@ -584,13 +605,13 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     IF s <= 24 THEN s := 32 ELSIF s <= 56 THEN s := 64 ELSIF s <= 120 THEN s := 128
     ELSE s := (s+263) DIV 256 * 256
     END ;
-    T.len := dc; PutData(dcw, s); INC(dcw);  (*len used as address*)
+    T.len := dc; Put2Data(dcw, s); INC(dcw,2);  (*len used as address*)
     k := T.nofpar;   (*extension level!*)
     IF k > 3 THEN OAS.Mark("ext level too large")
     ELSE Q(T, dcw);
-      WHILE k < 3 DO PutData(dcw, -1); INC(dcw); INC(k) END
+      WHILE k < 3 DO Put2Data(dcw, -1); INC(dcw,2); INC(k) END
     END ;
-    FindPtrFlds(T, 0, dcw); PutData(dcw, -1); INC(dcw); tdx := dcw; dc := dcw*4;
+    FindPtrFlds(T, 0, dcw); Put2Data(dcw, -1); INC(dcw,2); tdx := dcw; dc := dcw*4;
     IF tdx >= maxTD THEN OAS.Mark("too many record types"); tdx := 0 END
   END BuildTD;
 
@@ -1332,12 +1353,12 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       ELSIF (obj.exno # 0) & (obj.class = OAB.Const) & (obj.type.form = OAB.Proc)
           & (obj.type.nofpar = 0) & (obj.type.base = OAB.noType) THEN i := 0; (*count commands*)
         WHILE obj.name[i] # 0X DO INC(i) END ;
-        i := (i+4) DIV 4 * 4; INC(comsize, i+4)
+        i := (i+8) DIV 8 * 8; INC(comsize, i+8)
       ELSIF obj.class = OAB.Var THEN INC(nofptrs, NofPtrs(obj.type))  (*count pointers*)
       END ;
       obj := obj.next
     END ;
-    size := varsize + strx + comsize + (pc + nofimps + nofent + nofptrs + 1)*4;  (*varsize includes type descriptors*)
+    size := varsize + strx + comsize + (pc + nofimps + nofent + nofptrs + 1)*8;  (*varsize includes type descriptors*)
     
     OAB.MakeFileName(name, modid, ".a64"); (*write code file*)
     F := Files.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteInt(R, key); Files.Write(R, version);
@@ -1349,10 +1370,10 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
       obj := obj.next
     END ;
     Files.Write(R, 0);
-    Files.WriteInt(R, tdx*4);
+    Files.WriteInt(R, tdx*4); 
     i := 0;
     IF verbose THEN Emit("Writing type descriptors"); EmitLn; END;
-    WHILE i < tdx DO Files.WriteInt(R, GetData(i)); INC(i) END ; (*type descriptors*)
+    WHILE i < tdx DO c:=Get2Data(i); Files.WriteInt(R, c); INC(i,2) END ; (*type descriptors*)
     Files.WriteInt(R, varsize - tdx*4);  (*data*)
     Files.WriteInt(R, strx);
     IF verbose THEN Emit("Writing strings"); EmitLn; END;
