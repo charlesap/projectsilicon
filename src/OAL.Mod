@@ -108,7 +108,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         IF ch = versionkey THEN
           Files.ReadString(R, impname);   (*imports*) 
           WHILE (impname[0] # 0X) & (res = 0) DO 
-            Files.ReadInt(R, impkey); Emit("[");Emit(impname);Emit(":");Out.Hex(impkey);Emit("]");
+            Files.ReadInt(R, impkey); (* Emit("[");Emit(impname);Emit(":");Out.Hex(impkey);Emit("]"); *)
             ok := LinkOne(impname, impmod, DataEnd, CodeEnd, ProgEntry);
             import[nofimps] := impmod;
             importing := name1;
@@ -135,7 +135,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         END ;
       ELSE  ok:=FALSE; error(1, name1) 
       END ;
-      Emit("   |    Loading: ");Emit(fname);EmitLn;
+      Emit("   +    Loading: ");Emit(fname);EmitLn;
       Emit("   |       Size: ");Out.Int(flen,16);EmitLn;
       Emit("   |       Name: ");Emit(name1);EmitLn;
       Emit("   |        Key: ");Out.Hex(key);EmitLn;
@@ -375,6 +375,9 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
       END;
 
+      ProgEntry := ProgEntry + (8000H*(MTSpan - 1));
+
+      Emit( "   +   Entry at: "); Out.Hex(ProgEntry);EmitLn;
       bfo.Finish( F, K, MTSpan, ProgEntry );
 
 (*

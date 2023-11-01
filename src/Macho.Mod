@@ -269,7 +269,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
       Section(    "__c001", "__C001",      10000C000H + x, 4000H, 40000C000H + x,     0,  80000400H    );
       INC(i)
     END;                 x:=(8000H*(C-1)); 
-    Segment( 0, "__LINKEDIT", b + 100000000H, 4000H, b+x, 1E1H, 100000001H, 0 );
+    Segment( 0, "__LINKEDIT", b + 100000000H + x, 4000H, b+x, 1E1H, 100000001H, 0 );
     Mysterious( TRUE, 34H, 38H, b + x  );              (* dyld_chained_fixups  *)
     Mysterious( TRUE, 33H, 38H, b + 38H + x  );        (* dyld_exports_trie    *)
     Symbols( 3, b + 78H + x, 28H, b + 0A8H + x  );
@@ -285,7 +285,8 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     CodeSignature( 111H, b + 0D0H + x );
 
     (* post-header padding *)
-    i := 0; WHILE i < (1937 - 39H ) DO WR( 0000000000000000H ); INC(i) END;
+(*    i := 0; WHILE i < (1937 - 39H ) DO WR( 0000000000000000H ); INC(i) END; *)
+    Files.Set( R, F, 3F90H );
     ExitCode( ProgEntry );
 
     (* Kernel data page *)
