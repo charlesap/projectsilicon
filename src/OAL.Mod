@@ -295,10 +295,10 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 *)
       ELSIF res = 3 THEN importing := name;
         WHILE nofimps > 0 DO DEC(nofimps); DEC(import[nofimps].refcnt) END
-      END 
+      END; 
+      bfo.Write( I, DataEnd, CodeEnd, ProgEntry );
     END;
     newmod :=  mod;
-    bfo.Write( I, DataEnd, CodeEnd, ProgEntry );
   RETURN TRUE
   END LinkOne;
 
