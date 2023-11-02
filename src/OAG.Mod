@@ -63,29 +63,42 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END EmitLn;
 
   PROCEDURE Put32(VAR a: ARRAY OF BYTE; loc, i: INTEGER);
-    VAR I: INTEGER;
-  BEGIN
-    SYSTEM.GET(SYSTEM.ADR(a[loc*4]),I);
-    I:=I DIV 100000000H; I:=I * 100000000H + (i MOD 100000000H) ;
-    SYSTEM.PUT(SYSTEM.ADR(a[loc*4]),I);
+    VAR I,x: INTEGER;
+  BEGIN x:=loc*4;
+    IF x <= LEN(a) THEN
+      SYSTEM.GET(SYSTEM.ADR(a[x]),I);
+      I:=I DIV 100000000H; I:=I * 100000000H + (i MOD 100000000H) ;
+      SYSTEM.PUT(SYSTEM.ADR(a[x]),I);
+    ELSE OAS.Mark("bin array overflow")
+    END
   END Put32;
 
   PROCEDURE Get32(VAR a: ARRAY OF BYTE; loc: INTEGER):INTEGER;
-    VAR I: INTEGER;
-  BEGIN 
-    SYSTEM.GET(SYSTEM.ADR(a[loc*4]),I);
+    VAR I,x: INTEGER;
+  BEGIN I:=0;x:=loc*4;
+    IF x <= LEN(a) THEN
+      SYSTEM.GET(SYSTEM.ADR(a[x]),I);
+    ELSE OAS.Mark("Get32 overflow")
+    END;
     RETURN (I MOD 100000000H)
   END Get32;
 
   PROCEDURE Put64(VAR a: ARRAY OF BYTE; loc, i: INTEGER);
-  BEGIN
-    SYSTEM.PUT(SYSTEM.ADR(a[loc*4]),i);
+    VAR x:INTEGER;
+  BEGIN x:=loc*4;
+    IF x <= LEN(a) THEN
+      SYSTEM.PUT(SYSTEM.ADR(a[x]),i);
+    ELSE OAS.Mark("Put64 overflow")
+    END
   END Put64;
 
   PROCEDURE Get64(VAR a: ARRAY OF BYTE; loc: INTEGER):INTEGER;
-    VAR I: INTEGER;
-  BEGIN 
-    SYSTEM.GET(SYSTEM.ADR(a[loc*4]),I);
+    VAR I,x: INTEGER;
+  BEGIN I:=0;x:=loc*4;
+    IF x <= LEN(a) THEN
+      SYSTEM.GET(SYSTEM.ADR(a[x]),I);
+    ELSE OAS.Mark("Get64 overflow")
+    END;
     RETURN I
   END Get64;
 
@@ -392,25 +405,31 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
   PROCEDURE FixLink*(L: INTEGER);
     VAR L1: INTEGER;
   BEGIN
+(*
     WHILE L # 0 DO L1 := Get32(code,L) MOD 40000H; fix(L, pc-L-1); L := L1 END
+*)
   END FixLink;
 
   PROCEDURE FixLinkWith(L0, dst: INTEGER);
     VAR L1: INTEGER;
   BEGIN
+(*
     WHILE L0 # 0 DO
       L1 := Get32(code,L0) MOD C24;
       Put32(code, L0, Get32(code,L0) DIV C24 * C24 + ((dst - L0 - 1) MOD C24)); L0 := L1
     END
+*)
   END FixLinkWith;
 
   PROCEDURE merged(L0, L1: INTEGER): INTEGER;
     VAR L2, L3: INTEGER;
   BEGIN 
+(*
     IF L0 # 0 THEN L3 := L0;
       REPEAT L2 := L3; L3 := Get32(code,L2) MOD 40000H UNTIL L3 = 0;
       Put32(code, L2, Get32(code,L2) + L1); L1 := L0
     END ;
+*)
     RETURN L1
   END merged;
 
