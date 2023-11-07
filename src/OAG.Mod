@@ -110,37 +110,62 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   BEGIN (*emit format-0 instruction*)
     Put32( code, pc, ((a*10H + b) * 10H + op) * 10000H + c);
     INC(pc)
-  END Put0;
+  END Put0
+
+op + U=2000H 
+     V=1000H (im ones extend)
+
+;
 *)
 
-  PROCEDURE APut0(op, a, b, c: INTEGER);
-    VAR v: INTEGER;
+  PROCEDURE APut0(op, a, b, c: INTEGER); (*dst reg - src1 reg - src2 reg*)
+    VAR v: INTEGER; inv: BOOLEAN;
   BEGIN (*emit format-0 instruction*)
-    v:= 0F0000000H;
+    v:= 0BBBBBBBBH; inv := FALSE;
     IF op = Mov THEN
-     IF op < 2000H THEN (* no U flag *)
-      IF (( a # SP ) & ( b # SP )) THEN
+     IF op < 2000H THEN
+      IF (( a # SP ) & ( c # SP )) THEN
+        v:=0AAH + c*10H + 3 * 10000H + (0E0H+a)*1000000H;
       END;
-      IF (( a = SP ) & ( b # SP )) THEN
+      IF (( a = SP ) & ( c # SP )) THEN
+        v:=091H + (1FH+(a*2))*1000000H;
       END;
-      IF (( a # SP ) & ( b = SP )) THEN
+      IF (( a # SP ) & ( c = SP )) THEN
+        v:=091H + 3*10000H + (0E0H+a)*1000000H;
       END;
      ELSE (* has U flag *)
+          (* V=0: R.A:=H *)
+          (* V=1: R.A:=[N,Z,C,V] *)
      END
     ELSE  
       IF op = Lsl THEN v:= 09AC02000H END; (* negative immediate, positive is lsr *)
       IF op = Asr THEN v:= 09AC02800H END; 
       IF op = Ror THEN v:= 09AC02C00H END; 
-      IF op = Ann THEN v:= 022222222H END;
-      IF op = And THEN v:= 08A000000H END;
-      IF op = Ior THEN v:= 0AA000000H END;
-      IF op = Xor THEN v:= 0CA000000H END;
-      IF op = Add THEN v:= 08B000000H END;
-      IF op = Sub THEN v:= 0CB000000H END;
+      IF op = Ann THEN v:= 0EA000000H; inv := TRUE END;
+      IF op = And THEN v:= 0EA000000H END;
+      IF op = Ior THEN v:= 0AA000000H END; 
+      IF op = Xor THEN v:= 0CA1F0000H END;
+      IF op = Add THEN (* u=1: with carry *)
+        v:= 08B000000H
+      END;
+      IF op = Sub THEN (* u=1: with carry *)
+        v:= 0CB000000H
+      END;
+      IF op = Mul THEN (* u=1: unsigned *)
+        v:= 09B007C00H
+      END;
+      IF op = Div THEN
+        v:= 09AC00800H
+      END;
+
+
       v:=v + (c*10000H) + (b*20H) + a;
     END;
     Put32(code, pc, v );
-    INC(pc)
+    INC(pc);
+    IF inv THEN
+      v:= 0CA1F0000H + a*20H + a; Put32(code, pc, v ); INC(pc)
+    END
   END APut0;
 
 (*
@@ -150,79 +175,56 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     Put32(code, pc, (((a+40H) * 10H + b) * 10H + op) * 10000H + (im MOD 10000H));
     INC(pc)
   END Put1;
-*)
-
-(*
- fd 03 00 91 	mov	x29, sp
-
- e0 03 00 aa 	mov	x0, x0
- e0 03 01 aa 	mov	x0, x1
- e0 03 02 aa 	mov	x0, x2
- e0 03 04 aa 	mov	x0, x4
- e0 03 08 aa 	mov	x0, x8
- e0 03 10 aa 	mov	x0, x16
- e0 03 1f aa 	mov	x0, xzr
- e0 03 00 aa 	mov	x0, x0
- e1 03 00 aa 	mov	x1, x0
- e2 03 00 aa 	mov	x2, x0
- e4 03 00 aa 	mov	x4, x0
- e8 03 00 aa 	mov	x8, x0
- f0 03 00 aa 	mov	x16, x0
- ff 03 00 aa 	mov	xzr, x0
 
 
- 1f 00 00 91 	mov	sp, x0
- 3f 00 00 91 	mov	sp, x1
- 5f 00 00 91 	mov	sp, x2
- 9f 00 00 91 	mov	sp, x4
- 1f 01 00 91 	mov	sp, x8
- 1f 02 00 91 	mov	sp, x16
- df 03 00 91 	mov	sp, x30
+0 MOV a, n R.a := n
+1 LSL a, b, n R.a := R.b ← n (shift left by n bits)
+2 ASR a, b, n R.a := R.b → n (shift right by n bits with sign extension)
+3 ROR a, b, n R.a := R.b rot n (rotate right by n bits)
+4 AND a, b, n R.a := R.b & n logical operations
+5 ANN a, b, n R.a := R.b & ~n
+6 IOR a, b, n R.a := R.b or n
+7 XOR a, b, n R.a := R.b xor n
+8 ADD a, b, n R.a := R.b + n integer arithmetic
+9 SUB a, b, n R.a := R.b – n
+10 MUL a, b, n R.a := R.a х n
+11 DIV a, b, n R.a := R.b div n
 
- e0 03 00 91 	mov	x0, sp
- e1 03 00 91 	mov	x1, sp
- e2 03 00 91 	mov	x2, sp
- e4 03 00 91 	mov	x4, sp
- e8 03 00 91 	mov	x8, sp
- f0 03 00 91 	mov	x16, sp
- fe 03 00 91 	mov	x30, sp
-
- ff 03 01 d1    sub     sp, sp, #64
- ff 03 01 91    add     sp, sp, #64
 *)
 
   PROCEDURE APut1(op, a, b, im: INTEGER);
     VAR v: INTEGER;
   BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
-    v:= 0F1F1F1F1H;
+    v:= 0EEEEEEEEH;
     IF op = Mov THEN
-     IF op < 2000H THEN (* no U flag *)
-      IF (( a # SP ) & ( b # SP )) THEN
-        v:= 0AA0003E0H + (a * 10000H) + b  ;
-      END;
-      IF (( a = SP ) & ( b # SP )) THEN
-        v:= 0910003FDH; 
-      END;
-      IF (( a # SP ) & ( b = SP )) THEN
-        v:= 0910003FDH; 
-      END;
-     ELSE (* has U flag *)
+     IF a = SP THEN
+      OAS.Mark("no constant to stack pointer")
+     ELSE 
+       IF op < 2000H THEN
+         v:= 0D2800000H + (im * 20H) + a  ;
+       ELSE
+         OAS.Mark("can't shift left")
+       END
      END
     ELSE (* not Mov *)  
-(*
-    IF op = Add THEN v:= 0910103FFH END;
-    IF op = Sub THEN v:= 0D10103FFH END;
-*)
-      IF op = Lsl THEN v:= 0D340FC00H END; (* negative immediate, positive is lsr *)
-      IF op = Asr THEN v:= 09340FC00H END; 
-      IF op = Ror THEN v:= 093C00000H END; 
+      IF op = Lsl THEN v:= 0D37FF400H + ((0 - im) MOD 40H)*10000H + b*20H + a END; (* negative immediate, positive is lsr *)
+      IF op = Asr THEN v:= 09340FC00H + im*10000H + b*20H + a END; 
+      IF op = Ror THEN v:= 093C00000H + im*10000H + b*20H + a END; 
       IF op = Ann THEN v:= 022222222H END;
-      IF op = And THEN v:= 092000000H END;
-      IF op = Ior THEN v:= 0B2000000H END;
-      IF op = Xor THEN v:= 0D2000000H END;
-      IF op = Add THEN v:= 091000000H END;
-      IF op = Sub THEN v:= 0D1000000H END;
-      v:=v + (im*400H) + (b*20H) + a;
+      IF op = And THEN v:= 0F2000000H END; (*ugly*)
+      IF op = Ior THEN v:= 0B2000000H END; (*ugly*)
+      IF op = Xor THEN v:= 0D2000000H END; (*ugly*)
+      IF op = Add THEN (* u=1: with carry *)
+        v:= 091000000H; v:=v + (im*400H) + (b*20H) + a
+      END;
+      IF op = Sub THEN (* u=1: with carry *)
+        v:= 0D1000000H; v:=v + (im*400H) + (b*20H) + a
+      END;
+      IF op = Mul THEN (* u=1: unsigned *)
+        v:= 99999999H; v:=v + (im*400H) + (b*20H) + a
+      END;
+      IF op = Div THEN v:= 0AAAAAAAAH END;
+(*      v:=v + (im*400H) + (b*20H) + a; *)
     END;
     Put32(code, pc, v );
     INC(pc)
@@ -399,14 +401,14 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
   END fix;
 
   PROCEDURE FixOne*(at: INTEGER);
-  BEGIN fix(at, pc-at-1)
+  BEGIN fix(at, pc - at - 1)
   END FixOne;
 
   PROCEDURE FixLink*(L: INTEGER);
     VAR L1: INTEGER;
   BEGIN
 (*
-    WHILE L # 0 DO L1 := Get32(code,L) MOD 40000H; fix(L, pc-L-1); L := L1 END
+    WHILE L # 0 DO L1 := Get32(code,L) MOD 40000H; fix(L, pc - L - 1); L := L1 END
 *)
   END FixLink;
 

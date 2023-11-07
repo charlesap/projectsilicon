@@ -240,26 +240,32 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         IF ch # "O" THEN (*corrupted file*)  mod := NIL; ok:=FALSE; error(4, name1) END
       END ;
       IF res = 0 THEN (*fixup of BL*)
-        adr := mod.code + fixorgP*8;
-(*
-        WHILE adr # mod.code DO
+        (*adr := mod.code + fixorgP*4; *)
+        adr := DataEnd + binStart + fixorgP*4;
+        WHILE adr # (DataEnd + binStart) DO (* WHILE adr # mod.code DO *)
           SYSTEM.GET(adr, inst);
           mno := inst DIV 100000H MOD 10H;
           pno := inst DIV 1000H MOD 100H;
           disp := inst MOD 1000H;
+          Emit(".");
+(*
           SYSTEM.GET(mod.imp + (mno-1)*4, impmod);
           SYSTEM.GET(impmod.ent + pno*4, dest); dest := dest + impmod.code - binStart;
           offset := (dest - (adr - binStart) - 4) DIV 4;
           SYSTEM.PUT(adr, (offset MOD 1000000H) + 0F7000000H); 
+*)
           adr := adr - disp*4
         END ;
 
         (*fixup of LDR/STR/ADD*)
-        adr := mod.code + fixorgD*4;
-        WHILE adr # mod.code DO
+        (* adr := mod.code + fixorgD*4; *)
+        adr := DataEnd + binStart + fixorgD*4;
+        WHILE adr > (DataEnd + binStart) DO (*WHILE adr # mod.code DO *)
           SYSTEM.GET(adr, inst);
           mno := inst DIV 100000H MOD 10H;
           disp := inst MOD 1000H;
+          Emit("+");
+(*
           IF mno = 0 THEN  (*global*)
            SYSTEM.PUT(adr, (inst DIV 1000000H * 10H + MT) * 100000H + mod.num * 4)  
          ELSE (*import*)
@@ -270,17 +276,21 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
             IF ODD(inst DIV 100H) THEN offset := offset + impmod.code - impmod.data END ;
            SYSTEM.PUT(adr+4, inst DIV 10000H * 10000H + offset  ) 
           END ;
+*)
           adr := adr - disp*4
         END ;
 
         (*fixup of type descriptors*)
 
-        adr := mod.data + fixorgT*4;
-        WHILE adr # mod.data DO
+        (* adr := mod.data + fixorgT*4;*)
+        adr := mod.data + binStart + fixorgT*4;
+        WHILE adr > (mod.data+binStart)  DO (*WHILE adr # mod.data DO*)
           SYSTEM.GET(adr, inst);
           mno := inst DIV 1000000H MOD 10H;
           vno := inst DIV 1000H MOD 1000H;
           disp := inst MOD 1000H;
+          Emit("/");
+(*
           IF mno = 0 THEN                                              (*global*)
              inst := mod.data - binStart + vno
           ELSE                                                                 (*import*)
@@ -288,11 +298,10 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
             SYSTEM.GET(impmod.ent + vno*4, offset);
             inst := impmod.data + offset - binStart
           END ;
-          SYSTEM.PUT(adr, inst); adr := adr - disp*4 
-    (*      SYSTEM.PUT(adr, 44444444H ); adr := adr - disp*4  *)
-        END ;)
-        SYSTEM.PUT( binStart, body )            (* module initialization vector *)
+          SYSTEM.PUT(adr, inst); 
 *)
+          adr := adr - disp*4 
+        END ;
       ELSIF res = 3 THEN importing := name;
         WHILE nofimps > 0 DO DEC(nofimps); DEC(import[nofimps].refcnt) END
       END; 

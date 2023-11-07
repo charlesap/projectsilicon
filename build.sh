@@ -17,6 +17,7 @@ echo "in interim"
 
 ../obnc/oac -ms F.Mod
 codesign -s - F.bin
+objdump -d -j __c000 F.bin
 
 ../obnc/oac -ms G.Mod
 codesign -s - G.bin
@@ -29,17 +30,25 @@ objdump -d -j __c000 H.bin
 objdump -d -j __c001 H.bin
 objdump -d -j __c002 H.bin
 
-../obnc/oac -ms V.Mod
-codesign -s - V.bin
-objdump -d -j __c000 V.bin
+../obnc/oac -ms I.Mod
+codesign -s - I.bin
+objdump -d -j __c000 I.bin
+
+../obnc/oac -s V.Mod
+#codesign -s - V.bin
+#objdump -d -j __c000 V.bin
+
+../obnc/oac -s R.Mod
+#codesign -s - R.bin
+#objdump -d -j __c000 R.bin
 
 #../obnc/oac -ms M.Mod
 #codesign -s - M.bin
 #objdump -d -j __c000 M.bin
-../obnc/oac -ms Out.Mod
+../obnc/oac -s Out.Mod
 #codesign -s - Out.bin
 #objdump -d -j __c000 Out.bin
-../obnc/oac -ms Files.Mod
+../obnc/oac -s Files.Mod
 #codesign -s - Files.bin
 #objdump -d -j __c000 Files.bin
 ../obnc/oac -s Fonts.Mod
@@ -54,9 +63,6 @@ objdump -d -j __c000 V.bin
 #as exit.asm -o exit.o       #dummy compiler until interim one works
 #ld exit.o -L /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/ -lSystem -o oac
 
-../obnc/oac -ms R.Mod
-codesign -s - R.bin
-objdump -d -j __c000 R.bin
 
 
 

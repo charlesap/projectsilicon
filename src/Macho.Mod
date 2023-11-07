@@ -180,9 +180,15 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
   END Write;
 
+  PROCEDURE Bump(VAR c: CHAR);
+  BEGIN
+    c:=CHR(ORD(c)+1);
+  END Bump;
 
-  PROCEDURE Finish*(VAR F: Files.File; K: OAB.Kbin; C, ProgEntry: INTEGER);
+
+  PROCEDURE Finish*(VAR F: Files.File; K: OAB.Kbin; N, ProgEntry: INTEGER);
     VAR i,p,v,x: INTEGER;
+        c,C,d,D: ARRAY 8 OF CHAR;
   BEGIN
                          
     (* misc bookkeeping to satisfy the loader *)
@@ -251,24 +257,26 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
     Files.Set( R, F, 0 );
 
-    Header( 380H + ((13H * 8)*2)*C, 19+((C-1)*2) ); (* 1200 or 4B0H *) 
+    Header( 380H + ((13H * 8)*2)*N, 19+((N-1)*2) ); (* 1200 or 4B0H *) 
     Segment( 0, "__PAGEZERO", 0,           100000000H,         0,          0,         0, 0 ); 
     Segment( 2, "__TEXT",                  100000000H,     4000H,          0,     4000H, 500000005H, 0 );
     Section(    "__text", "__TEXT",        100003F90H,       1CH, 400003F90H,         0,  80000400H    );
     Section(    "__unwind_info", "__TEXT", 100003FACH,       48H, 400003FACH,         0,         0     );
     Segment( 1, "__K000",                  100004000H,     4000H,      4000H,     4000H, 300000003H, 0 );
     Section(    "__k000", "__K000",        100004000H,     4000H, 400004000H,         0,         0     );
-    Segment( 1, "__D000",                  100008000H,     4000H,      8000H,     4000H, 300000003H, 0 );
-    Section(    "__d000", "__D000",        100008000H,     4000H, 400008000H,         0,         0     );
-    Segment( 1, "__C000",                  10000C000H,     4000H,     0C000H,     4000H, 500000005H, 0 );
-    Section(    "__c000", "__C000",        10000C000H,     4000H, 40000C000H,         0,  80000400H    );
-    i:=1; WHILE i < C DO   x:=8000H*(i);
-      Segment( 1, "__D001",                100008000H + x, 4000H,      8000H + x, 4000H, 300000003H, 0 );
-      Section(    "__d001", "__D001",      100008000H + x, 4000H, 400008000H + x,     0,         0     );
-      Segment( 1, "__C001",                10000C000H + x, 4000H,     0C000H + x, 4000H, 500000005H, 0 );
-      Section(    "__c001", "__C001",      10000C000H + x, 4000H, 40000C000H + x,     0,  80000400H    );
+    D:="__D000"; d:="__d000";
+    C:="__C000"; c:="__c000";
+    Segment( 1, D,                         100008000H,     4000H,      8000H,     4000H, 300000003H, 0 );
+    Section(    d, D,                      100008000H,     4000H, 400008000H,         0,         0     );
+    Segment( 1, C,                         10000C000H,     4000H,     0C000H,     4000H, 500000005H, 0 );
+    Section(    c, C,                      10000C000H,     4000H, 40000C000H,         0,  80000400H    );
+    i:=1; WHILE i < N DO   x:=8000H*(i); Bump(D[5]); Bump(d[5]); Bump(C[5]); Bump(c[5]);
+      Segment( 1, D,                       100008000H + x, 4000H,      8000H + x, 4000H, 300000003H, 0 );
+      Section(    d, D,                    100008000H + x, 4000H, 400008000H + x,     0,         0     );
+      Segment( 1, C,                       10000C000H + x, 4000H,     0C000H + x, 4000H, 500000005H, 0 );
+      Section(    c, C,                    10000C000H + x, 4000H, 40000C000H + x,     0,  80000400H    );
       INC(i)
-    END;                 x:=(8000H*(C-1)); 
+    END;                 x:=(8000H*(N-1)); 
     Segment( 0, "__LINKEDIT", b + 100000000H + x, 4000H, b+x, 1E1H, 100000001H, 0 );
     Mysterious( TRUE, 34H, 38H, b + x  );              (* dyld_chained_fixups  *)
     Mysterious( TRUE, 33H, 38H, b + 38H + x  );        (* dyld_exports_trie    *)
