@@ -140,8 +140,8 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
 
   PROCEDURE ExitCode(ProgEntry: INTEGER);
   BEGIN
-    WR( 2222222211111111H );
-    WR( 4444444433333333H );
+    WR( 0000000100004080H ); (*MT location*)
+    WR( 58FFFFBC44444444H ); (* load MT location into MT register *)
     WR(0D280003094002018H + (ProgEntry DIV 4)); (*  D2800540H *)
     WR( 00000001D4001001H );
     WR( 000000000000001CH );
@@ -286,7 +286,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     ApplicationUUID( 0F931B7FDE38F91CCH, 239DEFA4E546FD8AH );
     MinimumOS();
     Mysterious( FALSE, 2AH, 0, 0 );      (* source version used to build binary *)
-    MainEntry( 3FA0H, 0 );
+    MainEntry( 3F9CH, 0 ); (* 3FA0H *)
     LinkLibSystem();
     Mysterious( FALSE, 26H, 8H, b + 70H + x ); (* compressed table of function start addresses *)
     Mysterious( FALSE, 29H, 0, b + 78H + x );  (* table of non-instructions in __text *)

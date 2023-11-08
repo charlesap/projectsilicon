@@ -3,7 +3,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
   CONST
     versionkey = 1X;
-    MT = 12;
+    MT = 28;
     DescSize = 128;
 
   TYPE
@@ -78,7 +78,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   PROCEDURE LinkOne*(name: ARRAY OF CHAR; VAR newmod: Module;VAR DataEnd, CodeEnd, ProgEntry: INTEGER): BOOLEAN;
     VAR mod, cmod, impmod, xmod: Module;
       i, n, key, impkey, mno, nofimps, size, flen, xlat: INTEGER;
-      p, u, v, w: INTEGER;  (*addresses*)
+      p, u, v, w, a: INTEGER;  (*addresses*)
       ch: CHAR;
       b: BYTE;
       body: Command;
@@ -160,10 +160,6 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         END
       END ; 
       IF ok THEN (*read file*)
-        SYSTEM.PUT(kStart ,0FFFFFFFFFFFFFFFFH);
-        SYSTEM.PUT(kStart + 8,0FFFFFFFFFFFFFFFFH);
-        SYSTEM.PUT(kStart + (4000H-16),0FFFFFFFFFFFFFFFFH);
-        SYSTEM.PUT(kStart + (4000H-8),0FFFFFFFFFFFFFFFFH);
         INC(p, DescSize); (*jump over module descriptor*)
         zero(mod.name);   zero(cmod.name);
         mod.name := name; cmod.name := name;
@@ -182,6 +178,8 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         Emit("   |StringBytes: ");Out.Int(n,16);EmitLn;
         WHILE n > 0 DO Files.Read(R, b); ch:=CHR(b); SYSTEM.PUT(p, ch); INC(p); DEC(n) END ;   (*strings*)
         DataEnd:= p - binStart;
+        SYSTEM.PUT(kStart,0FFFFFFFFFFFFFFFFH);
+        SYSTEM.PUT(kStart + 128 + cmod.num*8, 100004000H + (8000H*mod.num) - DataEnd ); (* place entry in MT *)
         xlat := 10000C000H - DataEnd; (* first module line between data and code *)
         mod.code := 10000C000H + ((mod.num - 1)* 4000H);  (*program*)
         cmod.code := 10000C000H + ((mod.num - 1)* 4000H);  (*program*)
@@ -236,7 +234,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         Emit("   |       Body: ");Out.Int(w,16);EmitLn;
 	ProgEntry := w;
         Files.Read(R, b); ch:=CHR(b);
-        Emit("   |        Tag: ");Out.Char(ch);EmitLn;
+        Emit("   |        Tag: ");Out.Char(ch);
         IF ch # "O" THEN (*corrupted file*)  mod := NIL; ok:=FALSE; error(4, name1) END
       END ;
       IF res = 0 THEN (*fixup of BL*)
@@ -264,19 +262,34 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
           SYSTEM.GET(adr, inst);
           mno := inst DIV 100000H MOD 10H;
           disp := inst MOD 1000H;
-          Emit("+");
-(*
+          a:=inst DIV 1000000H MOD 20H;
+          v:=inst DIV 20000000H MOD 8;
+          Out.Char(CHR(ORD("0")+a));
+          IF v = 0 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
+          IF v = 1 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
+          IF v = 2 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
+          IF v = 3 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
+          IF v = 4 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
+          IF v = 5 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
+          IF v = 6 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
+          IF v = 7 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
+
+
           IF mno = 0 THEN  (*global*)
-           SYSTEM.PUT(adr, (inst DIV 1000000H * 10H + MT) * 100000H + mod.num * 4)  
-         ELSE (*import*)
+           SYSTEM.PUT(adr, v)  
+           (*SYSTEM.PUT(adr, (inst DIV 1000000H * 10H + MT) * 100000H + mod.num * 4) *) 
+          ELSE (*import*)
+(*
             SYSTEM.GET(mod.imp + (mno-1)*4, impmod); v := impmod.num;
             SYSTEM.PUT(adr, (inst DIV 1000000H * 10H + MT) * 100000H + v*4); 
             SYSTEM.GET(adr+4, inst); vno := inst MOD 100H;
             SYSTEM.GET(impmod.ent + vno*4, offset);
             IF ODD(inst DIV 100H) THEN offset := offset + impmod.code - impmod.data END ;
            SYSTEM.PUT(adr+4, inst DIV 10000H * 10000H + offset  ) 
-          END ;
 *)
+           SYSTEM.PUT(adr,55555555H);
+          END ;
+
           adr := adr - disp*4
         END ;
 
@@ -302,6 +315,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 *)
           adr := adr - disp*4 
         END ;
+        EmitLn;
       ELSIF res = 3 THEN importing := name;
         WHILE nofimps > 0 DO DEC(nofimps); DEC(import[nofimps].refcnt) END
       END; 
@@ -361,14 +375,17 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       CodeEnd := i - binStart;
 
 
-      p:=SYSTEM.VAL(Module,binroot);  
-      p:= NIL;         
+      p:=SYSTEM.VAL(Module,cbinroot);  
+           
       WHILE p # NIL DO  (* fix up module chain of pointers*)
-        Emit( p.name);   Emit( " at "); Out.Hex( p.data );
+        Emit("   | "); Emit( p.name);
+        Emit( " module at: "); Out.Hex( SYSTEM.VAL(INTEGER,cbinroot) ); (* - binStart );*)
+        Emit( " data at: "); Out.Hex( p.data );
         Emit( " (");   Out.Hex( p.data - binStart ); Emit( ") " );
         Out.Hex(p.num );  EmitLn;
         M:=p;
         p:=p.next;
+        
 (*
         IF M.next # NIL THEN M.next := SYSTEM.VAL(Modules.Module, SYSTEM.VAL(INTEGER, M.next) - binStart) END;
         M.data := M.data - binStart;
@@ -389,16 +406,6 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       Emit( "   +   Entry at: "); Out.Hex(ProgEntry);EmitLn;
       bfo.Finish( F, K, MTSpan, ProgEntry );
 
-(*
-      i := binStart;
-      Files.Set(R, F, 0); 
-
-      SYSTEM.PUT(binStart + 16, binAllocPtr - binStart );       (*size of linked binary file *)
-      SYSTEM.PUT(binStart + 24, 40000H );   (* limit / heapOrg *) 
-      SYSTEM.GET(binStart,v);
-      SYSTEM.PUT(binStart, 0E7H * 1000000H + (v DIV 4) -1);      (* Branch to Module start routine *)
-      WHILE i < binAllocPtr DO SYSTEM.GET( i, v); Files.WriteInt(R,v); INC(i,4) END;
-*)
       Files.Register(F); Files.Close(F);
       Emit( " linked with "); Out.Int(MTSpan,4);Emit(" modules.");EmitLn
     ELSE

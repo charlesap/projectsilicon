@@ -298,6 +298,20 @@ op + U=2000H
     INC(pc)
   END APut2;
 
+  PROCEDURE APutFixD(op, rh, m, off: INTEGER);
+    VAR t,v: INTEGER;
+  BEGIN
+    t:=4;
+    IF op = Ldr THEN t:= 0 END;
+    IF op = Str THEN t:= 1 END;
+(*
+    IF op = Ldb THEN t:= 2 END;
+    IF op = Stb THEN t:= 3 END;
+*)
+    Put32(code, pc, ((t * 20000000H) + (rh * 1000000H) + (m * 100000H) + (off MOD 100000H)));
+    INC(pc)
+  END APutFixD;
+
 (*
   PROCEDURE Put3(op, cond, off: INTEGER);
   BEGIN (*emit branch instruction*)
@@ -439,9 +453,7 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
 
   PROCEDURE GetSB(base: INTEGER);
   BEGIN
-    IF version = 0 THEN APut1(Mov, RH, 0, VarOrg0)
-    ELSE APut2(Ldr, RH, -base, pc-fixorgD); fixorgD := pc-1
-    END
+    APutFixD(Ldr, RH, -base, pc-fixorgD); fixorgD := pc-1
   END GetSB;
 
   PROCEDURE NilCheck;
@@ -466,7 +478,7 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
         x.r := RH; incR
       ELSIF x.mode = OAB.Var THEN
         IF x.r > 0 THEN (*local*) APut2(op, RH, SP, x.a + frame)
-        ELSE GetSB(x.r); APut2(op, RH, RH, x.a)
+        ELSE GetSB(x.r); APut2(op, RH, RH, x.a) 
         END ;
         x.r := RH; incR
       ELSIF x.mode = OAB.Par THEN APut2(Ldr, RH, SP, x.a + frame); APut2(op, RH, RH, x.b); x.r := RH; incR
