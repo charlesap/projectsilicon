@@ -14,8 +14,8 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     ModDesc = RECORD (* 128 bytes *)
         name: ModuleName;                                               (* 32 *)
         next: Module;                                                   (*  8 *)
-        key, num, size, refcnt: INTEGER;                                (* 32 *)
-        data, code, imp, cmd, ent, ptr, unused: INTEGER  (*addresses*)  (* 56 *)
+        key, num, dsize, csize, refcnt: INTEGER;                        (* 40 *)
+        data, code, imp, cmd, ent, ptr: INTEGER          (*addresses*)  (* 48 *)
     END ;
 
     BFOps = RECORD
@@ -152,10 +152,10 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
             IF binroot # NIL THEN  mod.num := binroot.num + 1; cmod.num := cbinroot.num + 1
             ELSE mod.num := 1; cmod.num := 1
             END;
-            mod.size := size; cmod.size := size;
+            mod.dsize := size; cmod.dsize := size;
             mod.next := binroot; binroot := mod;
             cmod.next := cbinroot; cbinroot := cmod; INC(MTSpan);
-            Emit("   |    ModSize: ");Out.Int(mod.size,16);EmitLn
+            Emit("   |    ModSize: ");Out.Int(mod.dsize,16);EmitLn
         ELSE ok:=FALSE; error(7, name1)
         END
       END ; 
@@ -179,7 +179,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         WHILE n > 0 DO Files.Read(R, b); ch:=CHR(b); SYSTEM.PUT(p, ch); INC(p); DEC(n) END ;   (*strings*)
         DataEnd:= p - binStart;
         SYSTEM.PUT(kStart,0FFFFFFFFFFFFFFFFH);
-        SYSTEM.PUT(kStart + 128 + cmod.num*8, 100004000H + (8000H*mod.num) - DataEnd ); (* place entry in MT *)
+        SYSTEM.PUT(kStart + 128 + cmod.num*8, 100004000H + (8000H*mod.num) - DataEnd + DescSize ); (* place entry in MT *)
         xlat := 10000C000H - DataEnd; (* first module line between data and code *)
         mod.code := 10000C000H + ((mod.num - 1)* 4000H);  (*program*)
         cmod.code := 10000C000H + ((mod.num - 1)* 4000H);  (*program*)
@@ -276,7 +276,8 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
 
           IF mno = 0 THEN  (*global*)
-           SYSTEM.PUT(adr, v)  
+           SYSTEM.GET(adr, i); i:=(i DIV 100000000H)*100000000H + v;
+           SYSTEM.PUT(adr, i)  
            (*SYSTEM.PUT(adr, (inst DIV 1000000H * 10H + MT) * 100000H + mod.num * 4) *) 
           ELSE (*import*)
 (*
