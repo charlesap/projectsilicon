@@ -2,7 +2,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   IMPORT SYSTEM, Out, Files, OAS, OAB, Macho;
 
   CONST
-    versionkey = 1X;
+    versionkey = 2X;
     MT = 28;
     DescSize = 128;
 
@@ -31,7 +31,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     importing*, imported*: ModuleName;
     limit: INTEGER;
     MDCache: ARRAY 128 OF ModDesc;
-    I: OAB.Mbin;
+    D,C: OAB.Mbin;
     K: OAB.Kbin;
     bfo: BFOps;   
 
@@ -77,7 +77,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
   PROCEDURE LinkOne*(name: ARRAY OF CHAR; VAR newmod: Module;VAR DataEnd, CodeEnd, ProgEntry: INTEGER): BOOLEAN;
     VAR mod, cmod, impmod, xmod: Module;
-      i, n, key, impkey, mno, nofimps, size, flen, xlat: INTEGER;
+      i, n, key, impkey, mno, nofimps, dsize, csize, size, flen, xlat: INTEGER;
       p, u, v, w, a: INTEGER;  (*addresses*)
       ch: CHAR;
       b: BYTE;
@@ -103,7 +103,9 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         Files.ReadInt(R, key);
         Files.Read(R, b);
         ch:=CHR(b);
-        Files.ReadInt(R, size);
+        Files.ReadInt(R, dsize);
+        Files.ReadInt(R, csize);
+        size := dsize + csize;
         importing := name1;
         IF ch = versionkey THEN
           Files.ReadString(R, impname);   (*imports*) 
@@ -167,6 +169,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         mod.refcnt := 0;  cmod.refcnt := 0;
         mod.data := p - binStart;  (*data*)
         cmod.data := p - binStart;  (*data*)
+        Emit("   |    MTEntry: ");Out.Hex(p);EmitLn;
         SYSTEM.PUT(mod.num * 8 + MTOrg, p );  (*module table entry*)
         Files.ReadInt(R, n);
         Emit("   |    TDBytes: ");Out.Int(n,16);EmitLn;
@@ -320,7 +323,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       ELSIF res = 3 THEN importing := name;
         WHILE nofimps > 0 DO DEC(nofimps); DEC(import[nofimps].refcnt) END
       END; 
-      bfo.Write( I, DataEnd, CodeEnd, ProgEntry );
+      bfo.Write( C, DataEnd, CodeEnd, ProgEntry );
     END;
     newmod :=  mod;
   RETURN TRUE
@@ -352,11 +355,12 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       ok: BOOLEAN;
   BEGIN 
     NEW(K);
-    NEW(I);
+    NEW(D);
+    NEW(C);
 
     SetFormat( format );
 
-    binStart := SYSTEM.VAL(INTEGER,I);
+    binStart := SYSTEM.VAL(INTEGER,C);
     kStart := SYSTEM.VAL(INTEGER,K);
     MTOrg := kStart + 128; MTSpan := 0; binroot := NIL; cbinroot := NIL; res:= 0;
     limit:= binStart + SYSTEM.SIZE(OAB.MbinDesc); 
@@ -372,7 +376,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       SYSTEM.PUT(kStart + 40,SYSTEM.VAL(INTEGER,binroot) - binStart );
 (*      SYSTEM.PUT(kStart + 504, 1234567887654321H );    *)       (* A fingerprint *)
 
-      i:=SYSTEM.VAL(INTEGER,I);
+      i:=SYSTEM.VAL(INTEGER,C);
       CodeEnd := i - binStart;
 
 

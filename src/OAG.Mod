@@ -43,7 +43,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     frame: INTEGER;  (*frame offset changed in SaveRegs and RestoreRegs*)
     fixorgP, fixorgD, fixorgT: INTEGER;   (*origins of lists of locations to be fixed up by loader*)
     check: BOOLEAN;  (*emit run-time checks*)
-    version: INTEGER;  (* 0 = RISC-0, 1 = RISC-5 *)
+    version: INTEGER;  (* 0 = RISC-0, 1 = RISC-5, 2 = AARCH64 *)
     verbose: BOOLEAN;
     
     relmap: ARRAY 6 OF INTEGER;  (*condition codes for relations*)
@@ -254,26 +254,6 @@ op + U=2000H
   END Put2;
 *)
 
-(*
- a9bf7bfd    	stp	x29, x30, [sp, #-16]!
- f9000000    	str	x0, [x0]
- f9000001    	str	x1, [x0]
- f9000020    	str	x0, [x1]
- f81f8020    	stur	x0, [x1, #-8]
- f9000420    	str	x0, [x1, #8]
- f90003e0    	str	x0, [sp]
- f81f83e0    	stur	x0, [sp, #-8]
- f90007e0    	str	x0, [sp, #8]
- f9400000    	ldr	x0, [x0]
- f9400001    	ldr	x1, [x0]
- f9400020    	ldr	x0, [x1]
- f85f8020    	ldur	x0, [x1, #-8]
- f9400420    	ldr	x0, [x1, #8]
- f94003e0    	ldr	x0, [sp]
- f85f83e0    	ldur	x0, [sp, #-8]
- f94007e0    	ldr	x0, [sp, #8]
-*)
-
   PROCEDURE APut2(op, a, b, off: INTEGER);
     VAR v: INTEGER;
   BEGIN (*emit load/store instruction*)
@@ -320,25 +300,19 @@ op + U=2000H
 *)
 
 (*
-100003f40: f8 ff ff 97 	bl	0x100003f20 <_main>
-100003f44: 1c 00 00 94 	bl	0x100003fb4 <_last>
-
-100003f78: d503201f    	nop
-100003f7c: d63f0000    	blr	x0
-100003f80: d63f0020    	blr	x1
-100003f84: d63f0040    	blr	x2
-100003f88: d63f0060    	blr	x3
-100003f8c: d63f0080    	blr	x4
-100003f90: d63f00a0    	blr	x5
-100003f94: d63f00c0    	blr	x6
-100003f98: d63f00e0    	blr	x7
 
 MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
+
+n negative
+z zero
+c carry
+v overflow
 
 *)
 
   PROCEDURE APut3(op, cond, off: INTEGER);
-    VAR ok: BOOLEAN;
+    VAR v: INTEGER;
+       ok: BOOLEAN;
   BEGIN (*emit branch instruction*)
     ok:= FALSE;
     IF ((op = BR) & (cond = 7)) THEN (* off (register) =30 is return from procedure 11 is from oberon interrupt *)
@@ -346,15 +320,18 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
     END;
     IF op = BLR THEN Put32(code, pc, 0D63F0000H); ok:= TRUE; INC(pc) END;
     IF op = BC  THEN 
-      IF cond =  7 THEN Put32(code, pc, 0H); ok:= TRUE; INC(pc) END;
-      IF cond = EQ THEN Put32(code, pc, 054000080H); ok:= TRUE; INC(pc) END;
-      IF cond = NE THEN Put32(code, pc, 0H); ok:= TRUE; INC(pc) END;
-      IF cond = LT THEN Put32(code, pc, 05400006BH); ok:= TRUE; INC(pc) END;
-      IF cond = GE THEN Put32(code, pc, 0H); ok:= TRUE; INC(pc) END;
-      IF cond = LE THEN Put32(code, pc, 0H); ok:= TRUE; INC(pc) END;
-      IF cond = GT THEN Put32(code, pc, 0540000ACH); ok:= TRUE; INC(pc) END;
-      IF cond = MI THEN Put32(code, pc, 0H); ok:= TRUE; INC(pc) END;
-      IF cond = PL THEN Put32(code, pc, 0H); ok:= TRUE; INC(pc) END;
+      IF cond =  7 THEN v:=  54000000H END;
+      IF cond = EQ THEN v:= 054000080H END;
+      IF cond = NE THEN v:=  54000000H END;
+      IF cond = LT THEN v:= 05400006BH END;
+      IF cond = GE THEN v:=  54000000H END;
+      IF cond = LE THEN v:=  54000000H END;
+      IF cond = GT THEN v:= 0540000ACH END;
+      IF cond = MI THEN v:=  54000000H END;
+      IF cond = PL THEN v:=  54000000H END;
+      Put32(code, pc, v + (off MOD 80000)*20 );
+      ok:= TRUE;
+      INC(pc)
     END;
     IF op = BL  THEN
       IF off <= 0 THEN
@@ -408,23 +385,39 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
   END negated;
 
   PROCEDURE fix(at, with: INTEGER);
-    VAR t: INTEGER;
+    VAR t,f: INTEGER;
   BEGIN
+(*
     t:= Get32(code,at);
-    Put32(code, at, t DIV C24 * C24 + (with MOD C24));
+    Put32(code, at, t DIV C24 * C24 + ((with MOD 80000H)*20H));
+*)
   END fix;
 
   PROCEDURE FixOne*(at: INTEGER);
   BEGIN fix(at, pc - at - 1)
   END FixOne;
 
-  PROCEDURE FixLink*(L: INTEGER);
-    VAR L1: INTEGER;
+  PROCEDURE FixLink*(L: INTEGER); (* conditional branch offset *)
+    VAR L1,op: INTEGER;
   BEGIN
 (*
-    WHILE L # 0 DO L1 := Get32(code,L) MOD 40000H; fix(L, pc - L - 1); L := L1 END
+    WHILE L # 0 DO
+        L1 := Get32(code,L) DIV 20H MOD 80000H;
+        fix(L, pc - L - 1);
+        L := L1
+    END
 *)
   END FixLink;
+
+  PROCEDURE FixBCLink*(L: INTEGER); (* conditional branch offset *)
+    VAR L1,op: INTEGER;
+  BEGIN
+    WHILE L # 0 DO
+        L1 := Get32(code,L) DIV 20H MOD 80000H;
+        fix(L, pc - L - 1);
+        L := L1
+    END
+  END FixBCLink;
 
   PROCEDURE FixLinkWith(L0, dst: INTEGER);
     VAR L1: INTEGER;
@@ -514,7 +507,7 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
     IF x.type.form = OAB.Bool THEN
       IF x.mode = OAB.Const THEN x.r := 15 - x.a*8
       ELSE load(x);
-        IF Get32(code,pc-1) DIV 40000000H # -2 THEN APut1(Cmp, x.r, x.r, 0) END ;
+        (*IF Get32(code,pc-4) DIV 40000000H # -2 THEN *) APut1(Cmp, x.r, x.r, 0) (*END*) ;
         x.r := NE; DEC(RH)
       END ;
       x.mode := Cond; x.a := 0; x.b := 0
@@ -1025,27 +1018,27 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
   (* Branches, procedure calls, procedure prolog and epilog *)
 
   PROCEDURE Here*(): INTEGER;
-  BEGIN RETURN pc
+  BEGIN RETURN pc DIV 4
   END Here;
 
   PROCEDURE FJump*(VAR L: INTEGER);
-  BEGIN APut3(BC, 7, L); L := pc-1
+  BEGIN APut3(BC, 7, L); L := (pc DIV 4)-1
   END FJump;
 
   PROCEDURE CFJump*(VAR x: Item);
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
-    APut3(BC, negated(x.r), x.a); FixLink(x.b); x.a := pc-1
+    APut3(BC, negated(x.r), x.a); FixLink(x.b); x.a := (pc DIV 4)-1
   END CFJump;
 
   PROCEDURE BJump*(L: INTEGER);
-  BEGIN APut3(BC, 7, L-pc-1)
+  BEGIN APut3(BC, 7, L-(pc DIV 4)-1)
   END BJump;
 
   PROCEDURE CBJump*(VAR x: Item; L: INTEGER);
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
-    APut3(BC, negated(x.r), L-pc-1); FixLink(x.b); FixLinkWith(x.a, L)
+    APut3(BC, negated(x.r), L-(pc DIV 4)-1); FixLink(x.b); FixLinkWith(x.a, L)
   END CBJump;
 
   PROCEDURE Fixup*(VAR x: Item);
@@ -1380,7 +1373,7 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
 
   PROCEDURE Close*(VAR modid: OAS.Ident; key, nofent: INTEGER);
     VAR obj: OAB.Object;
-      i, c, comsize, nofimps, nofptrs, size: INTEGER;
+      i, c, comsize, nofimps, nofptrs, dsize, csize: INTEGER;
 (*    b: BYTE; *)
       name: OAS.Ident;
       F: Files.File; R: Files.Rider;
@@ -1401,11 +1394,13 @@ MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
       END ;
       obj := obj.next
     END ;
-    size := varsize + strx + comsize + (pc + nofimps + nofent + nofptrs + 1)*8;  (*varsize includes type descriptors*)
-    
+    dsize := varsize + strx + comsize;  (*varsize includes type descriptors*)
+    csize := (pc + nofimps + nofent + nofptrs + 1)*8; 
+
     OAB.MakeFileName(name, modid, ".a64"); (*write code file*)
     F := Files.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteInt(R, key); Files.Write(R, version);
-    Files.WriteInt(R, size);
+    Files.WriteInt(R, dsize);
+    Files.WriteInt(R, csize);
     obj := OAB.topScope.next;
     IF verbose THEN Emit("Writing imports"); EmitLn; END;
     WHILE (obj # NIL) & (obj.class = OAB.Mod) DO  (*imports*)

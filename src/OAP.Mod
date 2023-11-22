@@ -927,7 +927,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
   BEGIN Emit("  compiling "); OAS.Get(sym);
     IF sym = OAS.module THEN
       OAS.Get(sym);
-      IF sym = OAS.times THEN version := 0; dc := 8; Emit("*"); OAS.Get(sym) ELSE dc := 0; version := 1 END ;
+      IF sym = OAS.times THEN version := 0; dc := 8; Emit("*"); OAS.Get(sym) ELSE dc := 0; version := 2 END ;
       OAB.Init; OAB.OpenScope;
       IF sym = OAS.ident THEN
         OAS.CopyId(modid); OAS.Get(sym);
