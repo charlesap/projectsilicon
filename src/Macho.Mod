@@ -165,7 +165,7 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
   END Prepare;
 
 
-  PROCEDURE Write*(D,C: OAB.Mbin; dsz, csz, ProgEntry: INTEGER);
+  PROCEDURE Write*(D, C: OAB.Mbin; dsz, csz: INTEGER);
     VAR i,p,v,lim: INTEGER;
   BEGIN
 

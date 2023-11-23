@@ -1395,6 +1395,7 @@ v overflow
       obj := obj.next
     END ;
     dsize := varsize + strx + comsize;  (*varsize includes type descriptors*)
+(*    dsize := (dsize + 15) DIV 16 * 16; *)
     csize := (pc + nofimps + nofent + nofptrs + 1)*8; 
 
     OAB.MakeFileName(name, modid, ".a64"); (*write code file*)

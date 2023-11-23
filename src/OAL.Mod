@@ -18,7 +18,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
     BFOps = RECORD
         Prepare : PROCEDURE (F: Files.File);
-        Write : PROCEDURE (D,I: OAB.Mbin; DataEnd, CodeEnd, ProgEntry: INTEGER);
+        Write : PROCEDURE (D, C: OAB.Mbin; dsz, csz: INTEGER);
         Finish : PROCEDURE (VAR F: Files.File; K: OAB.Kbin; C, ProgEntry: INTEGER)
     END;
 
@@ -28,12 +28,9 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     D,C: OAB.Mbin;
     K: OAB.Kbin;
     MRoot, M: Module;
-
-
-    binStart,  res*: INTEGER;
     importing*, imported*: ModuleName;
-    MDCache: ARRAY 128 OF ModDesc;
     bfo: BFOps;   
+    FLinkOne : PROCEDURE (mname: ARRAY OF CHAR; VAR newmod: Module;VAR ProgEntry: INTEGER): BOOLEAN;
 
   PROCEDURE Emit(s: ARRAY OF CHAR);
     VAR ss: ARRAY 128 OF CHAR;
@@ -50,33 +47,16 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     i:=0; WHILE i < LEN(s) DO s[i]:=0X; INC(i) END
   END zero;
 
-
-  PROCEDURE LinkOne*(mname: ARRAY OF CHAR; VAR newmod: Module;VAR ProgEntry: INTEGER): BOOLEAN;
+  PROCEDURE Prepare(VAR R: Files.Rider; VAR name1: ModuleName; VAR key, dsize, csize: INTEGER): BOOLEAN;
     VAR
-      import: ARRAY 16 OF Module;
       ok: BOOLEAN;
-      nofimps, flen, key, impkey, dsize, csize, size, i, p, q, n, a, v : INTEGER;
-      inst, mno, vno, pno, disp: INTEGER;
-      fixorgP, fixorgD, fixorgT: INTEGER;
-      ch: CHAR;
+      size, impkey, nofimps, ignore: INTEGER;
       b: BYTE;
-      mod, impmod: Module;
-      fname: OAS.Ident;
-      name1, impname: ModuleName;
-      F: Files.File; R: Files.Rider;
+      impname: ModuleName;
+      impmod: Module;
   BEGIN
-    ok := FALSE; mod := MRoot; nofimps := 0;
-    WHILE (mod # NIL) & (mname # mod.name) DO mod := mod.next END ;
-    IF mod # NIL THEN 
-      ok := TRUE (* module already linked *)
-    ELSE
-      OAB.MakeFileName(fname, mname, ".a64");
-      F := Files.Old(fname); 
-      IF F = NIL THEN
-          Emit(" module file not found")
-      ELSE (* read file prologue *)
-        Files.Set(R, F, 0);
-        flen := Files.Length(F);
+    ok := TRUE;
+
         Files.ReadString(R, name1);
         Files.ReadInt(R, key);
         Files.Read(R, b);
@@ -84,15 +64,13 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         Files.ReadInt(R, csize);
         size := dsize + csize;
         IF b # 2 THEN
+          ok := FALSE;
           Emit(" version key mismatch")
-        ELSE (* pre-load imports if any *)
+        ELSE
           Files.ReadString(R, impname);   (*imports*) 
-          ok := TRUE;
           WHILE (impname[0] # 0X) & ok DO 
             Files.ReadInt(R, impkey);
-            ok := LinkOne(impname, impmod, ProgEntry);
-            import[nofimps] := impmod;
-            importing := name1;
+            ok := FLinkOne(impname, impmod, ignore);
             IF ok THEN
               IF impmod.key = impkey THEN
                 INC(impmod.refcnt);
@@ -105,7 +83,248 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
             zero(impname);
             Files.ReadString(R, impname)
           END
-        END;
+        END
+    RETURN ok
+  END Prepare;
+
+  PROCEDURE LoadData(VAR R: Files.Rider; VAR mod: Module; dsize: INTEGER): BOOLEAN;
+    VAR
+      ok: BOOLEAN;
+      q, p, n, i: INTEGER;
+      ch: CHAR;
+      b: BYTE;
+  BEGIN
+    ok := TRUE;
+    q:= dAt;
+    DEC(dAt, dsize + DescSize);
+    IF dAt < dOrg THEN
+      ok:=FALSE; 
+      Emit(" data extent exceeded")
+    ELSE (* allocate space in data extent *)
+      p:= dAt;
+      mod := SYSTEM.VAL(Module, p);       (* module record at beginning of data *)
+      IF MRoot # NIL THEN  mod.num := MRoot.num + 1 ELSE mod.num := 1 END;
+      mod.dsize := dsize; mod.next := MRoot; MRoot := mod;
+      INC(MTSpan);
+      INC(p, DescSize); (*jump over module descriptor*)
+      mod.data := p;  (*to be adjusted at binary finalization*)
+      SYSTEM.PUT(mod.num * 8 + MTOrg, p );  (*to be adjusted at binary finalization*)
+      Files.ReadInt(R, n);
+      Emit("   |    TDBytes: ");Out.Int(n,16);EmitLn;
+      WHILE n > 0 DO Files.ReadInt(R, i);  SYSTEM.PUT(p, i);  INC(p, 8); DEC(n, 8) END ; (*type descriptors*)
+      Files.ReadInt(R, n);
+      Emit("   |   VarBytes: ");Out.Int(n,16);EmitLn;
+      WHILE n > 0 DO SYSTEM.PUT(p, 0); INC(p, 8); DEC(n, 8) END ;  (*variable space*)
+      Files.ReadInt(R, n);
+      Emit("   |StringBytes: ");Out.Int(n,16);EmitLn;
+      WHILE n > 0 DO Files.Read(R, b); ch:=CHR(b); SYSTEM.PUT(p, ch); INC(p); DEC(n) END ;   (*strings*)
+      Emit("   |   q - p   : ");Out.Int(q - p,16);EmitLn;
+      IF (q - p < 0) THEN
+        ok:=FALSE; 
+        Emit(" data overwrite of reserved space")
+      END
+    END
+    RETURN ok
+  END LoadData;
+
+
+  PROCEDURE LoadCode(VAR R: Files.Rider; VAR mod: Module; VAR fixorgP, fixorgD, fixorgT: INTEGER; nofimps: INTEGER): BOOLEAN;
+    VAR
+      ok: BOOLEAN;
+      q, p, n, i: INTEGER;
+      ch: CHAR;
+      b: BYTE;
+  BEGIN
+    ok := TRUE;
+    q:= cAt;
+    p:= cAt;
+    Files.ReadInt(R, n);
+    Emit("   |  CodeBytes: ");Out.Int(n*4,16);EmitLn;
+    WHILE n > 0 DO
+      Files.ReadInt(R, i);
+      SYSTEM.PUT(p, i);
+      INC(p, 8); DEC(n,2)
+    END ; 
+    Emit("   |    CodeEnd: ");Out.Hex(p - cAt);EmitLn;
+    mod.imp := p;  (*copy imports*)
+    i := 0;
+    WHILE i < nofimps DO
+(*      xmod:=import[i]; *) (*should go in SYSTEM.PUT *)
+      SYSTEM.PUT(p, 0); INC(p, 8); INC(i)                                                                   
+    END ;
+    mod.cmd := p; (*commands*) (*to be adjusted at binary finalization*)
+    Files.Read(R, b); ch:=CHR(b);
+      Emit("   |    -------- "); EmitLn;
+    WHILE ch # 0X DO
+      Emit("   |    Command: ");
+      b:=ORD(ch); Out.Char(ch); REPEAT SYSTEM.PUT(p, b); INC(p); Files.Read(R, b); ch:=CHR(b) UNTIL ch = 0X;EmitLn;
+      REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 8 = 0;
+      Files.ReadInt(R, n); SYSTEM.PUT(p, n); (*to be adjusted... *) INC(p, 8); Files.Read(R, b); ch:=CHR(b);
+      Emit("   |         At: ");Out.Int(n,16); EmitLn
+    END ;
+      Emit("   |    ======== ");EmitLn;
+    REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 8 = 0;
+    mod.ent := p; (*entries*) (*to be adjusted at binary finalization*)
+    Files.ReadInt(R, n);
+    Emit("   |     ECount: ");Out.Int(n,16);EmitLn;
+    WHILE n > 0 DO Files.ReadInt(R, i); SYSTEM.PUT(p, i); INC(p, 8); DEC(n) END ;
+    mod.ptr := p; (*pointer references*) (*to be adjusted at binary finalization*)
+    Files.ReadInt(R, i);
+    Emit("   |      PRefs: ");Out.Int(i,16);EmitLn;
+    WHILE (i >= 0) & (~R.eof) DO SYSTEM.PUT(p, mod.data + i (*- binStart*) ); INC(p, 8); Files.ReadInt(R, i) END ;
+    SYSTEM.PUT(p, 0); INC(p, 8);
+    Files.ReadInt(R, fixorgP); Files.ReadInt(R, fixorgD); Files.ReadInt(R, fixorgT);
+    Files.ReadInt(R, i); (*body := SYSTEM.VAL(Command, mod.code + i - binStart );*)
+    Emit("   |       Body: ");Out.Int(i,16);EmitLn;
+    mod.ent := i;
+    Files.Read(R, b); ch:=CHR(b);
+    Emit("   |        Tag: ");Out.Char(ch);EmitLn;
+    cAt := p;
+    IF ch # "O" THEN (*corrupted file*)  mod := NIL; ok:=FALSE END
+    RETURN ok
+  END LoadCode;
+
+  PROCEDURE FixBranches(fixorgP: INTEGER):BOOLEAN;
+    VAR
+      ok: BOOLEAN;
+      q, p, inst, mno, pno, disp: INTEGER;
+  BEGIN
+    ok := TRUE;
+    (*fixup of BL*)
+    (*adr := mod.code + fixorgP*4; *)
+    p := q + fixorgP*4;
+    WHILE p # q DO (* WHILE adr # mod.code DO *)
+      SYSTEM.GET(p, inst);
+      mno := inst DIV 100000H MOD 10H;
+      pno := inst DIV 1000H MOD 100H;
+      disp := inst MOD 1000H;
+      Emit(".");
+(*  
+      SYSTEM.GET(mod.imp + (mno-1)*4, impmod);
+      SYSTEM.GET(impmod.ent + pno*4, dest); dest := dest + impmod.code - binStart;
+      offset := (dest - (adr - binStart) - 4) DIV 4;
+      SYSTEM.PUT(adr, (offset MOD 1000000H) + 0F7000000H); 
+*)  
+      p := p - disp*4;
+      IF p < q THEN
+        p := q; ok:= FALSE;
+        Emit(" broken fixorgP chain ")
+      END
+    END ;
+    RETURN ok
+  END FixBranches;
+
+
+  PROCEDURE FixLoadStores(VAR mod: Module; fixorgD: INTEGER):BOOLEAN;
+    VAR
+      ok: BOOLEAN;
+      q, p, a, v, i, inst, mno, disp: INTEGER;
+  BEGIN
+    ok := TRUE;
+
+   (*fixup of LDR/STR/ADD*)
+   (* adr := mod.code + fixorgD*4; *)
+   p := q + fixorgD*4;
+   WHILE p # q DO (*WHILE adr # mod.code DO *)
+     SYSTEM.GET(p, inst);
+     mno := inst DIV 100000H MOD 10H;
+     disp := inst MOD 1000H;
+     a:=inst DIV 1000000H MOD 20H;
+     v:=inst DIV 20000000H MOD 8;
+     Out.Char(CHR(ORD("0")+a));
+     IF v = 0 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
+     IF v = 1 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
+     IF v = 2 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
+     IF v = 3 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
+     IF v = 4 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
+     IF v = 5 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
+     IF v = 6 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
+     IF v = 7 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
+   
+   
+     IF mno = 0 THEN  (*global*)
+      SYSTEM.GET(p, i); i:=(i DIV 100000000H)*100000000H + v;
+      SYSTEM.PUT(p, i)  
+      (*SYSTEM.PUT(adr, (inst DIV 1000000H * 10H + MT) * 100000H + mod.num * 4) *) 
+     ELSE (*import*)
+(* 
+       SYSTEM.GET(mod.imp + (mno-1)*4, impmod); v := impmod.num;
+       SYSTEM.PUT(adr, (inst DIV 1000000H * 10H + MT) * 100000H + v*4); 
+       SYSTEM.GET(adr+4, inst); vno := inst MOD 100H;
+       SYSTEM.GET(impmod.ent + vno*4, offset);
+       IF ODD(inst DIV 100H) THEN offset := offset + impmod.code - impmod.data END ;
+      SYSTEM.PUT(adr+4, inst DIV 10000H * 10000H + offset  ) 
+*) 
+      SYSTEM.PUT(p,55555555H);
+     END ;
+   
+     p := p - disp*4
+   END ;
+
+
+    RETURN ok
+  END FixLoadStores;
+
+
+  PROCEDURE FixTypeDescriptors(VAR mod: Module; fixorgT: INTEGER):BOOLEAN;
+    VAR
+      ok: BOOLEAN;
+      q, p, inst, mno, vno, disp: INTEGER;
+  BEGIN
+    ok := TRUE;
+
+    (*fixup of type descriptors*)
+    
+    (* adr := mod.data + fixorgT*4;*)
+    p := q + fixorgT*4;
+    WHILE p # q  DO (*WHILE adr # mod.data DO*)
+      SYSTEM.GET(p, inst);
+      mno := inst DIV 1000000H MOD 10H;
+      vno := inst DIV 1000H MOD 1000H;
+      disp := inst MOD 1000H;
+      Emit("/");
+(*  
+      IF mno = 0 THEN                                              (*global*)
+         inst := mod.data - binStart + vno
+      ELSE                                                                 (*import*)
+        SYSTEM.GET(mod.imp + (mno-1)*4, impmod);
+        SYSTEM.GET(impmod.ent + vno*4, offset);
+        inst := impmod.data + offset - binStart
+      END ;
+      SYSTEM.PUT(adr, inst); 
+*)  
+      p := p - disp*4 
+    END ;
+    EmitLn;
+
+    RETURN ok
+  END FixTypeDescriptors;
+
+
+  PROCEDURE LinkOne*(mname: ARRAY OF CHAR; VAR newmod: Module;VAR ProgEntry: INTEGER): BOOLEAN;
+    VAR
+      ok: BOOLEAN;
+      mod: Module;
+      F: Files.File; R: Files.Rider;
+      nofimps, key, dsize, csize, size : INTEGER;
+      fixorgP, fixorgD, fixorgT: INTEGER;
+      b: BYTE;
+      fname: OAS.Ident;
+      name1: ModuleName;
+  BEGIN
+    ok := FALSE; mod := MRoot; nofimps := 0;
+    WHILE (mod # NIL) & (mname # mod.name) DO mod := mod.next END ;
+    IF mod # NIL THEN 
+      ok := TRUE (* module already linked *)
+    ELSE
+      OAB.MakeFileName(fname, mname, ".a64");
+      F := Files.Old(fname); 
+      IF F = NIL THEN
+          Emit(" module file not found")
+      ELSE
+        Files.Set(R, F, 0);
+        ok := Prepare( R, name1, key, dsize, csize );
+        size := dsize + csize;
 
         Emit("   +    Loading: ");Emit(fname);EmitLn;
         Emit("   |      DSize: ");Out.Int(dsize,16);EmitLn;
@@ -115,182 +334,25 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
         Emit("   | Versionkey: ");Out.Hex(b);EmitLn;
         Emit("   |    nofimps: ");Out.Int(nofimps,16);EmitLn;
 
-        IF ok THEN (* load data extent *)
-          q:= dAt;
-          DEC(dAt, dsize + DescSize);
-          IF dAt < dOrg THEN
-            ok:=FALSE; 
-            Emit(" data extent exceeded")
-          ELSE (* allocate space in data extent *)
-            p:= dAt;
-            mod := SYSTEM.VAL(Module, p);       (* module record at beginning of data *)
-            IF MRoot # NIL THEN  mod.num := MRoot.num + 1 ELSE mod.num := 1 END;
-            mod.dsize := dsize; mod.next := MRoot; MRoot := mod;
-            INC(MTSpan);
-            Emit("   | GlobalSize: ");Out.Int(mod.dsize + DescSize,16);EmitLn;
-            INC(p, DescSize); (*jump over module descriptor*)
-            mod.name := mname;
-            mod.key := key;
-            mod.refcnt := 0;
-            mod.data := p;  (*to be adjusted at binary finalization*)
-            Emit("   |    MTEntry: ");Out.Hex(p);EmitLn;
-            SYSTEM.PUT(mod.num * 8 + MTOrg, p );  (*to be adjusted at binary finalization*)
-            Files.ReadInt(R, n);
-            Emit("   |    TDBytes: ");Out.Int(n,16);EmitLn;
-            WHILE n > 0 DO Files.ReadInt(R, i);  SYSTEM.PUT(p, i);  INC(p, 8); DEC(n, 8) END ; (*type descriptors*)
-            Files.ReadInt(R, n);
-            Emit("   |   VarBytes: ");Out.Int(n,16);EmitLn;
-            WHILE n > 0 DO SYSTEM.PUT(p, 0); INC(p, 8); DEC(n, 8) END ;  (*variable space*)
-            Files.ReadInt(R, n);
-            Emit("   |StringBytes: ");Out.Int(n,16);EmitLn;
-            WHILE n > 0 DO Files.Read(R, b); ch:=CHR(b); SYSTEM.PUT(p, ch); INC(p); DEC(n) END ;   (*strings*)
-            Emit("   |   q - p   : ");Out.Int(q - p,16);EmitLn;
-            IF (q - p < 0) THEN
-              ok:=FALSE; 
-              Emit(" data overwrite of reserved space")
-            END
-          END
-        END;
-        IF ok THEN (* load code extent *)
-          q:= cAt;
-          p:= cAt;
-          Files.ReadInt(R, n);
-          Emit("   |  CodeBytes: ");Out.Int(n*4,16);EmitLn;
-          WHILE n > 0 DO
-            Files.ReadInt(R, i);
-            SYSTEM.PUT(p, i);
-            INC(p, 8); DEC(n,2)
-          END ;  (*program code*)
-          Emit("   |    CodeEnd: ");Out.Hex(p - cAt);EmitLn;
-          mod.imp := p;  (*copy imports*)
-          i := 0;
-          WHILE i < nofimps DO
-(*            xmod:=import[i]; *) (*should go in SYSTEM.PUT *)
-            SYSTEM.PUT(p, 0); INC(p, 8); INC(i)                                                                   
-          END ;
-          mod.cmd := p; (*commands*) (*to be adjusted at binary finalization*)
-          Files.Read(R, b); ch:=CHR(b);
-            Emit("   |    -------- "); EmitLn;
-          WHILE ch # 0X DO
-            Emit("   |    Command: ");
-            b:=ORD(ch); Out.Char(ch); REPEAT SYSTEM.PUT(p, b); INC(p); Files.Read(R, b); ch:=CHR(b) UNTIL ch = 0X;EmitLn;
-            REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 8 = 0;
-            Files.ReadInt(R, n); SYSTEM.PUT(p, n); (*to be adjusted... *) INC(p, 8); Files.Read(R, b); ch:=CHR(b);
-            Emit("   |         At: ");Out.Int(n,16); EmitLn
-          END ;
-            Emit("   |    ======== ");EmitLn;
-          REPEAT SYSTEM.PUT(p, 0X); INC(p) UNTIL p MOD 8 = 0;
-          mod.ent := p; (*entries*) (*to be adjusted at binary finalization*)
-          Emit("   |     ETable: ");Out.Hex(mod.ent);EmitLn;
-          Files.ReadInt(R, n);
-          Emit("   |     ECount: ");Out.Int(n,16);EmitLn;
-          WHILE n > 0 DO Files.ReadInt(R, i); SYSTEM.PUT(p, i); INC(p, 8); DEC(n) END ;
-          mod.ptr := p; (*pointer references*) (*to be adjusted at binary finalization*)
-          Files.ReadInt(R, i);
-          Emit("   |      PRefs: ");Out.Int(i,16);EmitLn;
-          WHILE (i >= 0) & (~R.eof) DO SYSTEM.PUT(p, mod.data + i - binStart ); INC(p, 8); Files.ReadInt(R, i) END ;
-          SYSTEM.PUT(p, 0); INC(p, 8);
-          Files.ReadInt(R, fixorgP); Files.ReadInt(R, fixorgD); Files.ReadInt(R, fixorgT);
-          Emit("   |    fixorgP: ");Out.Int(fixorgP,16);EmitLn;
-          Emit("   |    fixorgD: ");Out.Int(fixorgD,16);EmitLn;
-          Emit("   |    fixorgT: ");Out.Int(fixorgT,16);EmitLn;
-          Files.ReadInt(R, i); (*body := SYSTEM.VAL(Command, mod.code + i - binStart );*)
-          Emit("   |       Body: ");Out.Int(i,16);EmitLn;
-          ProgEntry := i;
-          Files.Read(R, b); ch:=CHR(b);
-          Emit("   |        Tag: ");Out.Char(ch);
-          cAt := p;
-          IF ch # "O" THEN (*corrupted file*)  mod := NIL; ok:=FALSE END
-        END;
         IF ok THEN
+          ok := LoadData( R, mod, dsize );
+          mod.name := mname;
+          mod.key := key;
+          mod.refcnt := 0;
+        END;
 
+        IF ok THEN ok := LoadCode( R, mod, fixorgP, fixorgD, fixorgT, nofimps ) END;
 
-          (*fixup of BL*)
-          (*adr := mod.code + fixorgP*4; *)
-          p := q + fixorgP*4;
-          WHILE p # q DO (* WHILE adr # mod.code DO *)
-            SYSTEM.GET(p, inst);
-            mno := inst DIV 100000H MOD 10H;
-            pno := inst DIV 1000H MOD 100H;
-            disp := inst MOD 1000H;
-            Emit(".");
-(*     
-            SYSTEM.GET(mod.imp + (mno-1)*4, impmod);
-            SYSTEM.GET(impmod.ent + pno*4, dest); dest := dest + impmod.code - binStart;
-            offset := (dest - (adr - binStart) - 4) DIV 4;
-            SYSTEM.PUT(adr, (offset MOD 1000000H) + 0F7000000H); 
-*)     
-            p := p - disp*4
-          END ;
-       
-          (*fixup of LDR/STR/ADD*)
-          (* adr := mod.code + fixorgD*4; *)
-          p := q + fixorgD*4;
-          WHILE p # q DO (*WHILE adr # mod.code DO *)
-            SYSTEM.GET(p, inst);
-            mno := inst DIV 100000H MOD 10H;
-            disp := inst MOD 1000H;
-            a:=inst DIV 1000000H MOD 20H;
-            v:=inst DIV 20000000H MOD 8;
-            Out.Char(CHR(ORD("0")+a));
-            IF v = 0 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
-            IF v = 1 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
-            IF v = 2 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
-            IF v = 3 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
-            IF v = 4 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
-            IF v = 5 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
-            IF v = 6 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
-            IF v = 7 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
-       
-       
-            IF mno = 0 THEN  (*global*)
-             SYSTEM.GET(p, i); i:=(i DIV 100000000H)*100000000H + v;
-             SYSTEM.PUT(p, i)  
-             (*SYSTEM.PUT(adr, (inst DIV 1000000H * 10H + MT) * 100000H + mod.num * 4) *) 
-            ELSE (*import*)
-(*     
-              SYSTEM.GET(mod.imp + (mno-1)*4, impmod); v := impmod.num;
-              SYSTEM.PUT(adr, (inst DIV 1000000H * 10H + MT) * 100000H + v*4); 
-              SYSTEM.GET(adr+4, inst); vno := inst MOD 100H;
-              SYSTEM.GET(impmod.ent + vno*4, offset);
-              IF ODD(inst DIV 100H) THEN offset := offset + impmod.code - impmod.data END ;
-             SYSTEM.PUT(adr+4, inst DIV 10000H * 10000H + offset  ) 
-*)     
-             SYSTEM.PUT(p,55555555H);
-            END ;
-       
-            p := p - disp*4
-          END ;
-       
-          (*fixup of type descriptors*)
-       
-          (* adr := mod.data + fixorgT*4;*)
-          p := q + fixorgT*4;
-          WHILE p # q  DO (*WHILE adr # mod.data DO*)
-            SYSTEM.GET(p, inst);
-            mno := inst DIV 1000000H MOD 10H;
-            vno := inst DIV 1000H MOD 1000H;
-            disp := inst MOD 1000H;
-            Emit("/");
-(*     
-            IF mno = 0 THEN                                              (*global*)
-               inst := mod.data - binStart + vno
-            ELSE                                                                 (*import*)
-              SYSTEM.GET(mod.imp + (mno-1)*4, impmod);
-              SYSTEM.GET(impmod.ent + vno*4, offset);
-              inst := impmod.data + offset - binStart
-            END ;
-            SYSTEM.PUT(adr, inst); 
-*)     
-            p := p - disp*4 
-          END ;
-          EmitLn;
+        IF ok THEN ok := FixBranches(fixorgP) END;
 
+        IF ok THEN ok := FixLoadStores(mod, fixorgD) END;
 
-        END
+        IF ok THEN ok := FixTypeDescriptors(mod, fixorgT) END;
+
       END
     END;
     newmod :=  mod;
+    IF mod # NIL THEN  ProgEntry := mod.ent ELSE ProgEntry := 0 END
     RETURN ok
   END LinkOne;
 
@@ -334,7 +396,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     bfo.Prepare( F );
     ok := LinkOne( name , M, ProgEntry );
 
-    bfo.Write( D, C, dLim - dAt, cAt - cOrg, ProgEntry );
+    bfo.Write( D, C, dLim - dAt, cAt - cOrg );
 
     IF ok THEN
       Emit( "   +   Entry at: "); Out.Hex(ProgEntry);EmitLn;
@@ -348,7 +410,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   END Link;
 
 
-BEGIN 
+BEGIN FLinkOne := LinkOne;
 (*  Emit("Silicon Oberon Linker   2023.09.24"); EmitLn *)
 END OAL.
 
