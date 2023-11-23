@@ -165,16 +165,17 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
   END Prepare;
 
 
-  PROCEDURE Write*(I: OAB.Mbin; DataEnd, CodeEnd, ProgEntry: INTEGER);
-    VAR i,p,v: INTEGER;
+  PROCEDURE Write*(D,C: OAB.Mbin; dsz, csz, ProgEntry: INTEGER);
+    VAR i,p,v,lim: INTEGER;
   BEGIN
 
                                                      
     (* module data at 8000H *)
-    i:=0; WHILE i <  4000H - DataEnd DO WR( 0 ); INC(i,8); END; (* pad so data ends at 0C000H *)
-    p:=SYSTEM.VAL(INTEGER,I);
-    WHILE i <  4000H DO SYSTEM.GET(p,v); WR( v ); INC(p,8); INC(i,8); END;
-                                
+    i:=0; WHILE i <  (4000H - dsz) -8 DO WR( 0 ); INC(i,8); END; (* pad so data ends at 0C000H *)
+    lim:=SYSTEM.VAL(INTEGER,D) + SYSTEM.SIZE(OAB.Mbin);
+    p:= lim - dsz;
+    WHILE p < lim DO SYSTEM.GET(p,v); WR( v ); INC(p,8); INC(i,8); END;
+    p:=SYSTEM.VAL(INTEGER,C);
     (* module code *)                                                        
     WHILE i <  8000H DO SYSTEM.GET(p,v); WR( v ); INC(p,8); INC(i,8); END;
 

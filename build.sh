@@ -5,6 +5,8 @@ echo
 echo
 echo "in obnc"
 obnc oac.Mod
+echo "result:"
+echo $?
 popd 2>&1 >> /dev/null
 pushd . 2>&1 >> /dev/null
 cd interim
@@ -22,13 +24,13 @@ objdump -d -j __c000 F.bin
 ../obnc/oac -ms G.Mod
 codesign -s - G.bin
 objdump -d -j __c000 G.bin
-objdump -d -j __c001 G.bin
+#objdump -d -j __c001 G.bin
 
 ../obnc/oac -ms H.Mod
 codesign -s - H.bin
 objdump -d -j __c000 H.bin
-objdump -d -j __c001 H.bin
-objdump -d -j __c002 H.bin
+#objdump -d -j __c001 H.bin
+#objdump -d -j __c002 H.bin
 
 ../obnc/oac -ms I.Mod
 codesign -s - I.bin
