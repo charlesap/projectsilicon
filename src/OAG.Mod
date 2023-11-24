@@ -1069,7 +1069,7 @@ v overflow
   PROCEDURE Call*(VAR x: Item; r: INTEGER);
   BEGIN (*x.type.form = OAB.Proc*)
     IF x.mode = OAB.Const THEN
-      IF x.r >= 0 THEN APut3(BL, 7, (x.a DIV 4)-pc-1)
+      IF x.r >= 0 THEN APut3(BL, 7, (x.a (*DIV 4*) )-pc-1)
       ELSE (*imported*)
         IF pc - fixorgP < 1000H THEN
           APut3(BL, 7, ((-x.r) * 100H + x.a) * 1000H + pc-fixorgP); fixorgP := pc-1

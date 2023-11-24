@@ -189,10 +189,10 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     SYSTEM.PUT(p, 0); INC(p, 8);
     Files.ReadInt(R, fixorgP); Files.ReadInt(R, fixorgD); Files.ReadInt(R, fixorgT);
     Files.ReadInt(R, i); (*body := SYSTEM.VAL(Command, mod.code + i - binStart );*)
-
-    Out.Hex(i);
-
     mod.ent := i + q-cOrg;
+
+    Out.Hex(mod.ent); (* body *)
+
     Files.Read(R, b); ch:=CHR(b);
 
     Emit("  ");Out.Char(ch); EmitLn; Emit("   |    ");
