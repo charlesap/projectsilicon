@@ -278,6 +278,14 @@ op + U=2000H
     INC(pc)
   END APut2;
 
+  PROCEDURE APutFixP(xr, xa, off: INTEGER);
+    VAR t,v: INTEGER;
+  BEGIN (* 16384 modules, 256 procedures/module, 64k 16k skip length *)
+  (*  Put32(code, pc, xr*1000H + xa*100H + off ); *)
+    Put32(code, pc, xr*100000H + xa*1000H + off );
+    INC(pc)
+  END APutFixP;
+
   PROCEDURE APutFixD(op, rh, m, off: INTEGER);
     VAR t,v: INTEGER;
   BEGIN
@@ -1072,7 +1080,8 @@ v overflow
       IF x.r >= 0 THEN APut3(BL, 7, (x.a (*DIV 4*) )-pc-1)
       ELSE (*imported*)
         IF pc - fixorgP < 1000H THEN
-          APut3(BL, 7, ((-x.r) * 100H + x.a) * 1000H + pc-fixorgP); fixorgP := pc-1
+          APutFixP( -x.r, x.a, pc-fixorgP ); fixorgP := pc-1 
+(*          APut3(BL, 7, ((-x.r) * 100H + x.a) * 1000H + pc-fixorgP); fixorgP := pc-1 *)
         ELSE OAS.Mark("fixup impossible")
         END
       END
