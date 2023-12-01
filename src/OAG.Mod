@@ -1392,18 +1392,20 @@ v overflow
     ELSE APut2(Ldp, FP, SP, 0); APut1(Add, SP, SP, 16); APut3(BR, 7, LNK) (* Ldp = FP + LNK *)
     END ;
     IF pc MOD 2 # 0 THEN INC( pc ) END;
-    obj := OAB.topScope.next; nofimps := 0; comsize := 4; nofptrs := 0;
+    obj := OAB.topScope.next; nofimps := 0; comsize := 8; nofptrs := 0;
     WHILE obj # NIL DO
       IF (obj.class = OAB.Mod) & (obj.dsc # OAB.system) THEN INC(nofimps) (*count imports*)
+
       ELSIF (obj.exno # 0) & (obj.class = OAB.Const) & (obj.type.form = OAB.Proc)
           & (obj.type.nofpar = 0) & (obj.type.base = OAB.noType) THEN i := 0; (*count commands*)
         WHILE obj.name[i] # 0X DO INC(i) END ;
         i := (i+8) DIV 8 * 8; INC(comsize, i+8)
+
       ELSIF obj.class = OAB.Var THEN INC(nofptrs, NofPtrs(obj.type))  (*count pointers*)
       END ;
       obj := obj.next
     END ;
-    dsize := varsize + strx + comsize;  (*varsize includes type descriptors*)
+    dsize := varsize + strx; (*varsize + strx + comsize;*)  (*varsize includes type descriptors*)
 (*    dsize := (dsize + 15) DIV 16 * 16; *)
     csize := (pc + nofimps + nofent + nofptrs + 1)*8; 
 
@@ -1418,14 +1420,20 @@ v overflow
       obj := obj.next
     END ;
     Files.Write(R, 0);
-    Files.WriteInt(R, tdx*4); 
+
+    Files.WriteInt(R, tdx DIV 2); 
+
     i := 0;
     IF verbose THEN Emit("Writing type descriptors"); EmitLn; END;
-    WHILE i < tdx DO c:=Get64(data,i); Files.WriteInt(R, c); INC(i,2) END ; (*type descriptors*)
-    Files.WriteInt(R, varsize - tdx*4);  (*data*)
+
+    WHILE i < tdx DIV 2 DO c:=Get64(data,i); Files.WriteInt(R, c); INC(i) END ; (*type descriptors*)
+(*
+    Files.WriteInt(R, varsize - tdx*8);  (*data*)
+*)
     Files.WriteInt(R, strx);
     IF verbose THEN Emit("Writing strings"); EmitLn; END;
     FOR i := 0 TO strx-1 DO Files.Write(R, ORD(str[i])) END ;  (*strings*)
+
     Files.WriteInt(R, pc);  (*code len*)
     IF verbose THEN Emit("Writing program code"); EmitLn; END;
     i:=0; WHILE i < pc DO 
@@ -1435,6 +1443,7 @@ v overflow
       Files.Write( R, code[(i*4)+3] );
       INC(i)
     END ;  (*program*)
+
     obj := OAB.topScope.next;
     IF verbose THEN Emit("Writing command entries"); EmitLn; END;
     WHILE obj # NIL DO  (*commands*)
@@ -1445,7 +1454,9 @@ v overflow
       obj := obj.next
     END ;
     Files.Write(R, 0);
+
     Files.WriteInt(R, nofent); Files.WriteInt(R, entry);
+
     obj := OAB.topScope.next;
     IF verbose THEN Emit("Writing module entries"); EmitLn; END;
     WHILE obj # NIL DO  (*entries*)
@@ -1461,12 +1472,14 @@ v overflow
       END ;
       obj := obj.next
     END ;
+
     obj := OAB.topScope.next;
     WHILE obj # NIL DO  (*pointer variables*)
       IF obj.class = OAB.Var THEN FindPtrs(R, obj.type, obj.val) END ;
       obj := obj.next
     END ;
     Files.WriteInt(R, -1);
+
     IF verbose THEN Emit("Writing heads of fixup lists"); EmitLn; END;
     Files.WriteInt(R, fixorgP); Files.WriteInt(R, fixorgD); Files.WriteInt(R, fixorgT); Files.WriteInt(R, entry);
     Files.Write(R, ORD("O")); Files.Register(F); Files.Close(F);

@@ -3,14 +3,25 @@ IMPORT F;
 
 PROCEDURE P;
 BEGIN
+  F.Q
 END P;
+
+PROCEDURE X;
+BEGIN
+  
+END X;
+
+PROCEDURE Y*;
+BEGIN
+  
+END Y;
 
 PROCEDURE Q*;
 BEGIN
-  P
+  
 END Q;
 
 BEGIN
-  F.Q 
+  Q   
 END G.
 

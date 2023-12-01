@@ -4,7 +4,6 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   CONST
     MT = 28;
     DescSize = 128;
-    fdOrg = 100008000H;
     fcOrg = 10000C000H;
 
   TYPE
@@ -16,10 +15,10 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     END ;
 
     ModDesc = RECORD (* 128 bytes *)
-        name: ModuleName;                                               (* 32 *)
         next: Module;                                                   (*  8 *)
         key, num, dsize, csize, refcnt: INTEGER;                        (* 40 *)
-        data, code, imp, cmd, ent, ptr: INTEGER          (*addresses*)  (* 48 *)
+        data, code, imp, cmd, ent, ptr: INTEGER;         (*addresses*)  (* 48 *)
+        name: ModuleName                                                (* 32 *)
     END ;
 
     BFOps = RECORD
@@ -106,7 +105,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   PROCEDURE LoadData(VAR R: Files.Rider; VAR mod: Module; dsize: INTEGER): BOOLEAN;
     VAR
       ok: BOOLEAN;
-      q, p, n, i: INTEGER;
+      q, p, n, i, v: INTEGER;
       ch: CHAR;
       b: BYTE;
   BEGIN
@@ -117,22 +116,26 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       ok:=FALSE; 
       Emit(" data extent exceeded")
     ELSE (* allocate space in data extent *)
+      p:= dAt; WHILE p < q DO SYSTEM.PUT(p,1111111111111111H); INC(p,8) END;
       p:= dAt;
       DEC(dAt, DescSize);
       mod := SYSTEM.VAL(Module, dAt);       (* module record at beginning of data *)
       IF MRoot # NIL THEN  mod.num := MRoot.num + 1 ELSE mod.num := 1 END;
       mod.dsize := dsize; mod.next := MRoot; MRoot := mod;
       INC(MTSpan);
-      mod.data := p;  (*to be adjusted at binary finalization*)
-      SYSTEM.PUT(mod.num * 8 + MTOrg, p  );  (*to be adjusted at binary finalization*)
+      mod.data := p - cLim + fcOrg;  (*to be adjusted at binary finalization*)
+      SYSTEM.PUT(mod.num * 8 + MTOrg, p - cLim + fcOrg );
+
+
       Files.ReadInt(R, n);
 
-      Out.Int(n,7);
+      Emit("(");Out.Int(n,5);Emit(")");
 
-      WHILE n > 0 DO Files.ReadInt(R, i);  SYSTEM.PUT(p, i);  INC(p, 8); DEC(n, 8) END ; (*type descriptors*)
+      i:=0;
+      WHILE i < n DO Files.ReadInt(R, v); SYSTEM.PUT(p + i*8, v); INC(i) END ; (*type descriptors*)
+
       Files.ReadInt(R, n);
-      WHILE n > 0 DO SYSTEM.PUT(p, 0); INC(p, 8); DEC(n, 8) END ;  (*variable space*)
-      Files.ReadInt(R, n);
+      p := dAt + dsize + DescSize - n;
       WHILE n > 0 DO Files.Read(R, b); ch:=CHR(b); SYSTEM.PUT(p, ch); INC(p); DEC(n) END ;   (*strings*)
 
       Out.Int(q - p,7);
@@ -149,19 +152,19 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   PROCEDURE LoadCode(VAR R: Files.Rider; VAR mod: Module; VAR body, fixorgP, fixorgD, fixorgT: INTEGER; nofimps: INTEGER; VAR import: Imps): BOOLEAN;
     VAR
       ok: BOOLEAN;
-      q, p, n, i: INTEGER;
+      q, p, n, i, md: INTEGER;
       ch: CHAR;
       b: BYTE;
   BEGIN
     ok := TRUE;
     q:= cAt;
     p:= cAt;
-    mod.code := p;  (*to be adjusted at binary finalization*)
+    mod.code := p - cOrg + fcOrg;
     Files.ReadInt(R, n);
 
     Out.Int(n*4,7);
 
-    WHILE n > 0 DO
+    WHILE n > 0 DO (* deposit code *)
       Files.ReadInt(R, i);
       SYSTEM.PUT(p, i);
       INC(p, 8); DEC(n,2)
@@ -169,14 +172,14 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
     Out.Hex(p - cAt);
 
-    mod.imp := p;    (*to be adjusted at binary finalization*)
+    mod.imp := p - cOrg + fcOrg;
     i := 0;          (*deposit imports*)
     WHILE i < nofimps DO
-      n := import.m[i];
+      n := import.m[i] - cLim + fcOrg;
       SYSTEM.PUT(p, n); INC(p, 8); INC(i) (* also adjust at fin *)                                                                  
     END ;
 
-    mod.cmd := p; (*commands*) (*to be adjusted at binary finalization*)
+    mod.cmd := p - cOrg + fcOrg;
     Files.Read(R, b); ch:=CHR(b); i:=0;
     WHILE ch # 0X DO
       b:=ORD(ch); REPEAT SYSTEM.PUT(p, b); INC(p); Files.Read(R, b); ch:=CHR(b) UNTIL ch = 0X;
@@ -187,14 +190,14 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
     Out.Int(i,7);
 
-    mod.ent := p; (*entries*) (*to be adjusted at binary finalization*)
+    mod.ent := p - cOrg + fcOrg;
     Files.ReadInt(R, n);
 
     Out.Int(n,7);
 
     WHILE n > 0 DO Files.ReadInt(R, i); SYSTEM.PUT(p, i); INC(p, 8); DEC(n) END ;
 
-    mod.ptr := p; (*pointer references*) (*to be adjusted at binary finalization*)
+    mod.ptr := p - cOrg + fcOrg; (*pointer references*)
     Files.ReadInt(R, i);
 
     Out.Int(i,7);
@@ -226,18 +229,20 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   PROCEDURE FixBranches(VAR mod: Module; fixorgP: INTEGER):BOOLEAN;
     VAR
       ok: BOOLEAN;
-      q, p, inst, mno, pno, disp, dest, h, m: INTEGER;
+      q, p, inst, mno, pno, disp, dest, offset, h, m, mil: INTEGER;
       im: Module;
   BEGIN
     ok := TRUE;
-    (*fixup of BL*)
-    (*adr := mod.code + fixorgP*4; *)
-    q := mod.code;
+    q := mod.code - fcOrg + cOrg;
     p := q + fixorgP*4;
 
     Out.Hex(fixorgP*4);
+
     SYSTEM.GET(p, inst);
+
     Out.Hex(inst MOD 100000000H );
+
+    mil := mod.imp - fcOrg + cOrg;
 
     WHILE p # q DO (* WHILE adr # mod.code DO *)
       mno := inst DIV 100000H MOD 1000H;
@@ -245,21 +250,25 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       disp := inst MOD 1000H;
       h:= inst DIV 100000000H * 100000000H;
 
-      SYSTEM.GET(mod.imp + (mno-1)*8, m); 
-      im := SYSTEM.VAL(Module, m);
+      SYSTEM.GET(mil + (mno-1)*8, m); 
+      im := SYSTEM.VAL(Module, m - fcOrg + cLim);
 
-      EmitLn; Out.Hex(p); Out.Hex(m); Emit(" "); Emit(im.name);
-      Out.Hex(im.data); Out.Hex(im.code); Out.Hex(im.imp); Out.Hex(im.cmd); Out.Hex(im.ent); Out.Hex(im.ptr);
+      EmitLn; Out.Hex(m); Out.Hex(m-fcOrg+cLim); Out.Hex(cLim);Emit(" [");  Emit(im.name); Emit("]");
+       Out.Hex(im.imp); Out.Hex(im.cmd); Out.Hex(im.ent);
+
       (*SYSTEM.GET(im.code + im.ent + pno*8, dest);*)
-      SYSTEM.GET(im.ent + pno*8, dest);
+      SYSTEM.GET(im.ent - fcOrg + cOrg  + pno*8, dest);
       Out.Hex(dest);
+      dest := dest*4 + im.code;
+      Out.Hex(dest);
+      offset := (dest - (p - cOrg + fcOrg)) DIV 4 + 1;  
+      Out.Hex(offset);
 
 (*  
       dest := dest + impmod.code - binStart;
       offset := (dest - (adr - binStart) - 4) DIV 4;
 *)
-      SYSTEM.PUT(p, h + 97FFEEEEH ); 
-
+      SYSTEM.PUT(p, h + 97FFFFFFH + offset); 
 
       p := p - disp*4;
       IF p < q THEN
@@ -336,6 +345,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     (*fixup of type descriptors*)
     
     (* adr := mod.data + fixorgT*4;*)
+    q := mod.data - fcOrg + cLim;
     p := q + fixorgT*4;
     WHILE p # q  DO (*WHILE adr # mod.data DO*)
       SYSTEM.GET(p, inst);
@@ -399,6 +409,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
         IF ok THEN
           ok := LoadData( R, mod, dsize );
+          zero(mod.name);
           mod.name := mname;
           mod.key := key;
           mod.refcnt := 0;
@@ -463,8 +474,6 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     EmitLn; Emit("   |    ");
 
     ok := LinkOne( name , M, ProgEntry );
-
-    SYSTEM.PUT(cLim - 8, 5555555555555555H);;
 
     bfo.Write( C, dAt, cAt);
 

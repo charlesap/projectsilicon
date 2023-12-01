@@ -1,8 +1,9 @@
 MODULE H;
-IMPORT F,G;
+IMPORT E,F,G;
 
 BEGIN
   F.Q;
-  G.Q 
+  G.Q;
+  G.Y
 END H.
 
