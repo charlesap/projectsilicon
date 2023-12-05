@@ -215,6 +215,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     Emit("  ");Out.Char(ch);
 
     cAt := p;
+
     IF ch # "O" THEN (*corrupted file*)  mod := NIL; ok:=FALSE END
     RETURN ok
   END LoadCode;
@@ -254,20 +255,16 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       im := SYSTEM.VAL(Module, m - fcOrg + cLim);
 
       EmitLn; Out.Hex(m); Out.Hex(m-fcOrg+cLim); Out.Hex(cLim);Emit(" [");  Emit(im.name); Emit("]");
-       Out.Hex(im.imp); Out.Hex(im.cmd); Out.Hex(im.ent);
+       Out.Hex(im.code); Out.Hex(im.cmd); Out.Hex(im.ent);
 
       (*SYSTEM.GET(im.code + im.ent + pno*8, dest);*)
       SYSTEM.GET(im.ent - fcOrg + cOrg  + pno*8, dest);
       Out.Hex(dest);
-      dest := dest*4 + im.code;
-      Out.Hex(dest);
-      offset := (dest - (p - cOrg + fcOrg)) DIV 4 + 1;  
+(*    dest := dest*4 + im.code;
+      offset := (dest - (p - cOrg + fcOrg)) DIV 4 + 1;  *)
+      offset := (((dest DIV 4) + (im.code DIV 4)) - ((p - cOrg + fcOrg) DIV 4)) + 1;  
       Out.Hex(offset);
 
-(*  
-      dest := dest + impmod.code - binStart;
-      offset := (dest - (adr - binStart) - 4) DIV 4;
-*)
       SYSTEM.PUT(p, h + 97FFFFFFH + offset); 
 
       p := p - disp*4;

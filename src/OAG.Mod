@@ -278,14 +278,6 @@ op + U=2000H
     INC(pc)
   END APut2;
 
-  PROCEDURE APutFixP(xr, xa, off: INTEGER);
-    VAR t,v: INTEGER;
-  BEGIN (* 16384 modules, 256 procedures/module, 64k 16k skip length *)
-  (*  Put32(code, pc, xr*1000H + xa*100H + off ); *)
-    Put32(code, pc, xr*100000H + xa*1000H + off );
-    INC(pc)
-  END APutFixP;
-
   PROCEDURE APutFixD(op, rh, m, off: INTEGER);
     VAR t,v: INTEGER;
   BEGIN
@@ -362,6 +354,13 @@ v overflow
   blr <Xn>      -- absolute branch to address in register Xn
 *)
 
+
+  PROCEDURE Pad4*;
+  BEGIN
+(*
+    WHILE (pc MOD 2) # 0 DO Put32(code, pc, 88888888H); INC(pc) END
+*)
+  END Pad4;
 
 
   PROCEDURE incR;
@@ -1026,27 +1025,27 @@ v overflow
   (* Branches, procedure calls, procedure prolog and epilog *)
 
   PROCEDURE Here*(): INTEGER;
-  BEGIN RETURN pc DIV 4
+  BEGIN RETURN pc
   END Here;
 
   PROCEDURE FJump*(VAR L: INTEGER);
-  BEGIN APut3(BC, 7, L); L := (pc DIV 4)-1
+  BEGIN APut3(BC, 7, L); L := (pc)-1
   END FJump;
 
   PROCEDURE CFJump*(VAR x: Item);
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
-    APut3(BC, negated(x.r), x.a); FixLink(x.b); x.a := (pc DIV 4)-1
+    APut3(BC, negated(x.r), x.a); FixLink(x.b); x.a := (pc)-1
   END CFJump;
 
   PROCEDURE BJump*(L: INTEGER);
-  BEGIN APut3(BC, 7, L-(pc DIV 4)-1)
+  BEGIN APut3(BC, 7, L-(pc)-1)
   END BJump;
 
   PROCEDURE CBJump*(VAR x: Item; L: INTEGER);
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
-    APut3(BC, negated(x.r), L-(pc DIV 4)-1); FixLink(x.b); FixLinkWith(x.a, L)
+    APut3(BC, negated(x.r), L-(pc)-1); FixLink(x.b); FixLinkWith(x.a, L)
   END CBJump;
 
   PROCEDURE Fixup*(VAR x: Item);
@@ -1056,15 +1055,15 @@ v overflow
   PROCEDURE SaveRegs(r: INTEGER);  (* R[0 .. r-1]*)
     VAR r0: INTEGER;
   BEGIN (*r > 0*) r0 := 0;
-    APut1(Sub, SP, SP, r*4); INC(frame, 4*r);
-    REPEAT APut2(Str, r0, SP, (r-r0-1)*4); INC(r0) UNTIL r0 = r
+    APut1(Sub, SP, SP, r*4); INC(frame, 4*r); (*was 4*)
+    REPEAT APut2(Str, r0, SP, (r-r0-1)*4); INC(r0) UNTIL r0 = r (*was 4*)
   END SaveRegs;
 
   PROCEDURE RestoreRegs(r: INTEGER); (*R[0 .. r-1]*)
     VAR r0: INTEGER;
   BEGIN (*r > 0*) r0 := r;
-    REPEAT DEC(r0); APut2(Ldr, r0, SP, (r-r0-1)*4) UNTIL r0 = 0;
-    APut1(Add, SP, SP, r*4); DEC(frame, 4*r)
+    REPEAT DEC(r0); APut2(Ldr, r0, SP, (r-r0-1)*4) UNTIL r0 = 0; (*was 4*)
+    APut1(Add, SP, SP, r*4); DEC(frame, 4*r) (*was 4*)
   END RestoreRegs;
 
   PROCEDURE PrepCall*(VAR x: Item; VAR r: INTEGER);
@@ -1077,11 +1076,12 @@ v overflow
   PROCEDURE Call*(VAR x: Item; r: INTEGER);
   BEGIN (*x.type.form = OAB.Proc*)
     IF x.mode = OAB.Const THEN
-      IF x.r >= 0 THEN APut3(BL, 7, (x.a (*DIV 4*) )-pc-1)
+      IF x.r >= 0 THEN APut3(BL, 7, (x.a DIV 4) - pc - 1)
       ELSE (*imported*)
         IF pc - fixorgP < 1000H THEN
-          APutFixP( -x.r, x.a, pc-fixorgP ); fixorgP := pc-1 
-(*          APut3(BL, 7, ((-x.r) * 100H + x.a) * 1000H + pc-fixorgP); fixorgP := pc-1 *)
+          Put32(code, pc, (-x.r)*100000H + (x.a)*1000H + (pc-fixorgP) );
+          fixorgP := pc; 
+          INC(pc)
         ELSE OAS.Mark("fixup impossible")
         END
       END
@@ -1098,27 +1098,6 @@ v overflow
       x.mode := Reg; x.r := r; RH := r+1
     END
   END Call;
-
-(*  procedure call prologue / epilogue
- ff 43 00 d1 	sub	sp, sp, #16     -- APut1 Sub SP SP 16
- fd 7b 00 a9 	stp	x29, x30, [sp]  -- APut2 Stp R29 SP (29 & 30)
- fd 03 00 91 	mov	x29, sp         -- APut1 Mov R29 SP
-
- fd 7b 40 a9 	ldp	x29, x30, [sp]  -- APut2 Ldp R29 SP (29 & 30)
- ff 43 00 91 	add	sp, sp, #16     -- APut1 Add SP SP 16
- c0 03 5f d6 	ret                     -- APut3 BR  7 LNK  (unconditional)
-*)
-
-(*
- fd 7b bf a9 	stp	x29, x30, [sp, #-16]!
- fd 03 00 91 	mov	x29, sp
- ff 03 01 d1 	sub	sp, sp, #64
- ff 03 01 91 	add	sp, sp, #64
- fd 7b c1 a8 	ldp	x29, x30, [sp], #16
- c0 03 5f d6 	ret
-*)  
-
-
 
   PROCEDURE Enter*(parblksize, locblksize: INTEGER; int: BOOLEAN);
     VAR a, r: INTEGER;
