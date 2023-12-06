@@ -262,16 +262,16 @@ op + U=2000H
     IF op = Ldp THEN v:= 0A8C17BFDH  END; (* x29, x30, [sp], #16   *)
     IF op = Str THEN
       IF off < 0 THEN
-        v:= 0F81F8000H + (off DIV 4 * 400H) + (b*20H) + a;
+        v:= 0F81F8000H + (off DIV 8 * 400H) + (b*20H) + a;
       ELSE
-        v:= 0F9000000H + (off DIV 4 * 400H) + (b*20H) + a;
+        v:= 0F9000000H + (off DIV 8 * 400H) + (b*20H) + a;
       END
     END;
     IF op = Ldr THEN
       IF off < 0 THEN
-        v:= 0F85F8000H + (off DIV 4 * 400H) + (b*20H) + a;
+        v:= 0F85F8000H + (off DIV 8 * 400H) + (b*20H) + a;
       ELSE
-        v:= 0F9400000H + (off DIV 4 * 400H) + (b*20H) + a
+        v:= 0F9400000H + (off DIV 8 * 400H) + (b*20H) + a
       END
     END;
     Put32(code, pc, v );
@@ -308,6 +308,9 @@ z zero
 c carry
 v overflow
 
+100003a38: 17fffff2    	b	0x100003a00  branch backwards
+100003a58: 14000001    	b	0x100003a5c  branch forwards
+
 *)
 
   PROCEDURE APut3(op, cond, off: INTEGER);
@@ -319,17 +322,28 @@ v overflow
       Put32(code, pc, 0D65F0000H + (off *20H )); ok:= TRUE; INC(pc)
     END;
     IF op = BLR THEN Put32(code, pc, 0D63F0000H); ok:= TRUE; INC(pc) END;
-    IF op = BC  THEN 
-      IF cond =  7 THEN v:=  54000000H END;
-      IF cond = EQ THEN v:= 054000080H END;
-      IF cond = NE THEN v:=  54000000H END;
-      IF cond = LT THEN v:= 05400006BH END;
-      IF cond = GE THEN v:=  54000000H END;
-      IF cond = LE THEN v:=  54000000H END;
-      IF cond = GT THEN v:= 0540000ACH END;
-      IF cond = MI THEN v:=  54000000H END;
-      IF cond = PL THEN v:=  54000000H END;
-      Put32(code, pc, v + (off MOD 80000)*20 );
+(*
+    IF ((op = BC) & (cond = 7)) THEN
+      IF off < 0 THEN
+        Put32(code, pc, 17FFFFFFH + off + 1)
+      ELSE
+        Put32(code, pc, 14000000H + off)
+      END;
+      ok:= TRUE; INC(pc)
+    END; 
+    IF ((op = BC) & (cond # 7)) THEN
+*)
+    IF op = BC THEN
+      IF cond = 7  THEN v:= 5400000EH END; (* *)
+      IF cond = EQ THEN v:= 54000002H END;
+      IF cond = NE THEN v:= 54000001H END; (* *)
+      IF cond = LT THEN v:= 54000007H END;
+      IF cond = GE THEN v:= 54000003H END;
+      IF cond = LE THEN v:= 54000004H END;
+      IF cond = GT THEN v:= 54000008H END;
+      IF cond = MI THEN v:= 54000005H END;
+      IF cond = PL THEN v:= 54000006H END;
+      Put32(code, pc, v + (off MOD 80000)*20H );
       ok:= TRUE;
       INC(pc)
     END;
@@ -337,7 +351,7 @@ v overflow
       IF off <= 0 THEN
         Put32(code, pc, 97FFFFFFH + (off + 2 )); ok:= TRUE; INC(pc)
       ELSE
-        Put32(code, pc, 94000000H + (off  )); ok:= TRUE; INC(pc)
+        Put32(code, pc, 94000000H + (off )); ok:= TRUE; INC(pc)
       END
     END;
 
@@ -392,12 +406,16 @@ v overflow
   END negated;
 
   PROCEDURE fix(at, with: INTEGER);
-    VAR t,f: INTEGER;
+    VAR t,a,c: INTEGER;
   BEGIN
-(*
-    t:= Get32(code,at);
-    Put32(code, at, t DIV C24 * C24 + ((with MOD 80000H)*20H));
-*)
+    IF at*4 < (LEN(code)-3) THEN 
+      t:= Get32(code,at);
+      a:= t DIV C24;
+      c:= t MOD 20H;
+      Put32(code, at, a * C24 + (((with MOD 80000H)+1)*20H) + c );
+    ELSE
+      OAS.Mark("fix error 1");
+    END
   END fix;
 
   PROCEDURE FixOne*(at: INTEGER);
@@ -407,34 +425,32 @@ v overflow
   PROCEDURE FixLink*(L: INTEGER); (* conditional branch offset *)
     VAR L1,op: INTEGER;
   BEGIN
-(*
-    WHILE L # 0 DO
+    IF L*4 < (LEN(code)-3) THEN 
+      WHILE L # 0 DO
+       IF L*4 < (LEN(code)-3) THEN 
         L1 := Get32(code,L) DIV 20H MOD 80000H;
         fix(L, pc - L - 1);
-        L := L1
+        L := L1;
+       ELSE
+         L:=0;OAS.Mark("fix error 2");
+       END
+      END
+    ELSE
+      OAS.Mark("fix error 3");
     END
-*)
   END FixLink;
 
-  PROCEDURE FixBCLink*(L: INTEGER); (* conditional branch offset *)
+  PROCEDURE FixLinkWith(L0, dst: INTEGER);
     VAR L1,op: INTEGER;
   BEGIN
-    WHILE L # 0 DO
-        L1 := Get32(code,L) DIV 20H MOD 80000H;
-        fix(L, pc - L - 1);
-        L := L1
-    END
-  END FixBCLink;
-
-  PROCEDURE FixLinkWith(L0, dst: INTEGER);
-    VAR L1: INTEGER;
-  BEGIN
-(*
     WHILE L0 # 0 DO
-      L1 := Get32(code,L0) MOD C24;
-      Put32(code, L0, Get32(code,L0) DIV C24 * C24 + ((dst - L0 - 1) MOD C24)); L0 := L1
+      (*L1 := Get32(code,L0) MOD C24;
+      Put32(code, L0, Get32(code,L0) DIV C24 * C24 + ((dst - L0 - 1) MOD C24));*)
+      op := Get32(code,L0);
+      L1 := op DIV 20H MOD 80000H;
+      Put32(code, L0, Get32(code,L0) DIV C24 * C24 + (((dst - L0 - 1) MOD C24)*20H) + (op MOD 20H));
+      L0 := L1
     END
-*)
   END FixLinkWith;
 
   PROCEDURE merged(L0, L1: INTEGER): INTEGER;

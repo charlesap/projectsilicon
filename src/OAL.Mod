@@ -221,12 +221,6 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   END LoadCode;
 
 
-  PROCEDURE p2v(a:INTEGER):INTEGER;
-  BEGIN
-    RETURN( a - cOrg + 10000C000H)
-  END p2v;
-
-
   PROCEDURE FixBranches(VAR mod: Module; fixorgP: INTEGER):BOOLEAN;
     VAR
       ok: BOOLEAN;
@@ -236,47 +230,24 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     ok := TRUE;
     q := mod.code - fcOrg + cOrg;
     p := q + fixorgP*4;
-
-    Out.Hex(fixorgP*4);
-
-    SYSTEM.GET(p, inst);
-
-    Out.Hex(inst MOD 100000000H );
-
     mil := mod.imp - fcOrg + cOrg;
-
     WHILE p # q DO (* WHILE adr # mod.code DO *)
+      SYSTEM.GET(p, inst);
       mno := inst DIV 100000H MOD 1000H;
       pno := inst DIV 1000H MOD 100H;
       disp := inst MOD 1000H;
       h:= inst DIV 100000000H * 100000000H;
-
       SYSTEM.GET(mil + (mno-1)*8, m); 
       im := SYSTEM.VAL(Module, m - fcOrg + cLim);
-
-      EmitLn; Out.Hex(m); Out.Hex(m-fcOrg+cLim); Out.Hex(cLim);Emit(" [");  Emit(im.name); Emit("]");
-       Out.Hex(im.code); Out.Hex(im.cmd); Out.Hex(im.ent);
-
-      (*SYSTEM.GET(im.code + im.ent + pno*8, dest);*)
       SYSTEM.GET(im.ent - fcOrg + cOrg  + pno*8, dest);
-      Out.Hex(dest);
-(*    dest := dest*4 + im.code;
-      offset := (dest - (p - cOrg + fcOrg)) DIV 4 + 1;  *)
       offset := (((dest DIV 4) + (im.code DIV 4)) - ((p - cOrg + fcOrg) DIV 4)) + 1;  
-      Out.Hex(offset);
-
       SYSTEM.PUT(p, h + 97FFFFFFH + offset); 
-
       p := p - disp*4;
       IF p < q THEN
         p := q; ok:= FALSE;
         Emit(" broken fixorgP chain ")
-      ELSE
-        SYSTEM.GET(p, inst)
       END
     END ;
-
-    EmitLn; Emit("   |    ");
     RETURN ok
   END FixBranches;
 
@@ -291,6 +262,11 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
    (*fixup of LDR/STR/ADD*)
    (* adr := mod.code + fixorgD*4; *)
    p := q + fixorgD*4;
+
+   Out.Hex(fixorgD*4);
+
+
+
    WHILE p # q DO (*WHILE adr # mod.code DO *)
      SYSTEM.GET(p, inst);
      mno := inst DIV 100000H MOD 10H;
@@ -326,6 +302,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
    
      p := p - disp*4
    END ;
+    EmitLn; Emit("   |    ");
 
 
     RETURN ok
