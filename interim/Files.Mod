@@ -1,9 +1,18 @@
 MODULE Files;
 
-  TYPE  DiskAdr = INTEGER;
-      File*    = POINTER TO FileDesc;
-      Buffer  = POINTER TO BufferRecord;
-      Index   = POINTER TO IndexRecord;
+  CONST
+
+  TYPE 
+
+
+
+    DiskAdr = INTEGER;
+
+
+
+    Buffer  = POINTER TO BufferRecord;
+    File*   = POINTER TO FileDesc;
+    Index   = POINTER TO IndexRecord;
 
     Rider* =
       RECORD eof*: BOOLEAN;
@@ -14,35 +23,23 @@ MODULE Files;
       END ;
 
     FileDesc =
-      RECORD next: INTEGER; (*list of files invisible to the GC*)
-(*
-        nofbufs, aleng, bleng: INTEGER;
-        modH, registered: BOOLEAN;
-        firstbuf: Buffer;
-        sechint: DiskAdr;
-        name: FileDir.FileName;
-        date: INTEGER;
-        ext:  ARRAY FileDir.ExTabSize OF Index;
-        sec: FileDir.SectorTable
-*)
+      RECORD next: INTEGER; 
       END ;
+
 
     BufferRecord =
       RECORD apos, lim: INTEGER;
         mod: BOOLEAN;
         next: Buffer;
-(*
-        data: FileDir.DataSector
-*)
       END ;
 
     IndexRecord =
       RECORD adr: DiskAdr;
         mod: BOOLEAN;
-(*  
-        sec: FileDir.IndexSector
-*)
       END ;
+
+
+
 
   PROCEDURE Old*(name: ARRAY OF CHAR): File;
     VAR 
@@ -50,6 +47,8 @@ MODULE Files;
   BEGIN f := NIL; 
     RETURN f
   END Old;
+
+
 
   PROCEDURE New*(name: ARRAY OF CHAR): File;
     VAR 
@@ -131,6 +130,10 @@ MODULE Files;
     Write(R, x MOD 80H)
   END WriteNum;
 
+
+
 BEGIN 
 END Files.
+
+
 
