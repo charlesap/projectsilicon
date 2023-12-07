@@ -1,23 +1,24 @@
-MODULE Modules;  (*Link and load on RISC; NW 20.10.2013 / 8.1.2019*)
+MODULE Modules;  (*Link and load on AARCH64; NW 20.10.2013 / 8.1.2019, CP 2023*)
   IMPORT SYSTEM, Files;
-  CONST versionkey = 1X; MT = 12; DescSize = 80;
+
+  CONST versionkey = 2X; MT = 28; DescSize = 128;
 
   TYPE Module* = POINTER TO ModDesc;
     Command* = PROCEDURE;
     ModuleName* = ARRAY 32 OF CHAR;
 
-    ModDesc* = RECORD
-        name*: ModuleName;
-        next*: Module;
-        key*, num*, size*, refcnt*: INTEGER;
-        data*, code*, imp*, cmd*, ent*, ptr*, unused: INTEGER  (*addresses*)
-      END ;
+    ModDesc = RECORD (* 128 bytes *)
+        next: Module;                                                   (*  8 *)
+        key, num, dsize, csize, refcnt: INTEGER;                        (* 40 *)
+        data, code, imp, cmd, ent, ptr: INTEGER;         (*addresses*)  (* 48 *)
+        name: ModuleName                                                (* 32 *)
+    END ;
 
   VAR root*, M: Module;
     MTOrg*, AllocPtr*, res*: INTEGER;
     importing*, imported*: ModuleName;
     limit: INTEGER;
-
+(*
   PROCEDURE ThisFile(name: ARRAY OF CHAR): Files.File;
     VAR i: INTEGER;
       filename: ModuleName;
@@ -214,13 +215,15 @@ MODULE Modules;  (*Link and load on RISC; NW 20.10.2013 / 8.1.2019*)
       END
     END
   END Free;
-
+*)
   PROCEDURE Init*;
   BEGIN Files.Init; MTOrg := SYSTEM.REG(MT);
+(*
     SYSTEM.GET(16, AllocPtr); SYSTEM.GET(20, root); SYSTEM.GET(24, limit); DEC(limit, 8000H)
+*)
   END Init;
 
-BEGIN Init; Load("Oberon", M);
-    LED(res); REPEAT UNTIL FALSE  (*only if load fails*)
+BEGIN Init; (*Load("Oberon", M);
+    LED(res); REPEAT UNTIL FALSE *) (*only if load fails*)
 END Modules.
 
