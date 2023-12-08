@@ -18,6 +18,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     level, exno, version: INTEGER;
     newSF: BOOLEAN;  (*option flag*)
     verbose: BOOLEAN;  (*option flag*)
+    incRuntime: BOOLEAN;  (*option flag*)
     ccFMT, ccWordsize, ccStackalign: INTEGER;
     expression: PROCEDURE (VAR x: OAG.Item);  (*to avoid forward reference*)
     Type: PROCEDURE (VAR type: OAB.Type);
@@ -467,6 +468,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       ELSIF pno = 12 THEN CheckInt(x); CheckInt(y); CheckInt(z); OAG.Copy(x, y, z)
       ELSIF pno = 13 THEN CheckConst(x); CheckInt(x); OAG.LDPSR(x)
       ELSIF pno = 14 THEN CheckInt(x); OAG.LDREG(x, y)
+      ELSIF pno = 15 THEN CheckInt(x); OAG.SYSCALL(x)
       END
     ELSE OAS.Mark("wrong nof parameters")
     END
@@ -970,7 +972,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     VAR key: INTEGER;
   BEGIN 
     IF verbose THEN Emit(" linking "); Emit(modid); EmitLn; END;
-    OAL.Link(modid,ccFMT)
+    OAL.Link(modid,ccFMT,incRuntime)
   END Link;
 
 
@@ -979,6 +981,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
   BEGIN
     newSF := FALSE;
     verbose := FALSE;
+    incRuntime := FALSE;
     ccFMT := 0; (* no linking *)
     ccWordsize := 4;
     ccStackalign := 4;
@@ -986,6 +989,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     i:=0; WHILE o[i] > 0X DO 
       IF o[i] = "s" THEN newSF := TRUE END;
       IF o[i] = "v" THEN verbose := TRUE END;
+      IF o[i] = "o" THEN incRuntime := TRUE END;
       IF o[i] = "b" THEN ccFMT :=  OAB.BIN     END;  (* raw binary *)
       IF o[i] = "r" THEN ccFMT :=  OAB.RSC64   END;  (* rsc64  *)
       IF o[i] = "e" THEN ccFMT :=  OAB.ELF64   END;  (* elf64  *)

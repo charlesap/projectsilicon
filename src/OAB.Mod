@@ -55,7 +55,7 @@ MODULE OAB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019, CP 2023  in Oberon-07*)
 
     Mbin* = POINTER TO MbinDesc;
     MbinDesc* = RECORD
-        bytes*: ARRAY 1024*1024*16 OF BYTE
+        bytes*: ARRAY 1000000H OF BYTE
     END ;
 
   (* Object classes and the meaning of "val":
@@ -459,7 +459,8 @@ BEGIN
   enter("VAL", SFunc, intType, 162);
   enter("REG", SFunc, intType, 151);
   enter("BIT", SFunc, boolType, 142);
-  enter("LDREG", SProc, noType, 142);  (*procedures*)
+  enter("SYSCALL", SProc, noType, 151);  (*procedures*)
+  enter("LDREG", SProc, noType, 142);
   enter("LDPSR", SProc, noType, 131);
   enter("COPY", SProc, noType, 123);
   enter("PUT", SProc, noType, 112);

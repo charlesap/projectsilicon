@@ -322,17 +322,6 @@ v overflow
       Put32(code, pc, 0D65F0000H + (off *20H )); ok:= TRUE; INC(pc)
     END;
     IF op = BLR THEN Put32(code, pc, 0D63F0000H); ok:= TRUE; INC(pc) END;
-(*
-    IF ((op = BC) & (cond = 7)) THEN
-      IF off < 0 THEN
-        Put32(code, pc, 17FFFFFFH + off + 1)
-      ELSE
-        Put32(code, pc, 14000000H + off)
-      END;
-      ok:= TRUE; INC(pc)
-    END; 
-    IF ((op = BC) & (cond # 7)) THEN
-*)
     IF op = BC THEN
       IF cond = 7  THEN v:= 5400000EH END; (* *)
       IF cond = EQ THEN v:= 54000002H END;
@@ -1239,6 +1228,15 @@ v overflow
     ELSE load(y); APut0(Mov, x.a, 0, y.r); DEC(RH)
     END
   END LDREG;
+
+  PROCEDURE SYSCALL*(VAR x: Item);
+  BEGIN
+(*
+    IF y.mode = OAB.Const THEN APut1a(Mov, x.a, 0, y.a)
+    ELSE load(y); APut0(Mov, x.a, 0, y.r); DEC(RH)
+    END
+*)
+  END SYSCALL;
 
   (*In-line code functions*)
 

@@ -255,24 +255,20 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   PROCEDURE FixLoadStores(VAR mod: Module; fixorgD: INTEGER):BOOLEAN;
     VAR
       ok: BOOLEAN;
-      q, p, a, v, i, inst, mno, disp: INTEGER;
+      q, p, a, v, i, inst, mno, disp, h: INTEGER;
   BEGIN
-    ok := TRUE;
-
-   (*fixup of LDR/STR/ADD*)
-   (* adr := mod.code + fixorgD*4; *)
+   ok := TRUE;
    p := q + fixorgD*4;
 
    Out.Hex(fixorgD*4);
-
-
 
    WHILE p # q DO (*WHILE adr # mod.code DO *)
      SYSTEM.GET(p, inst);
      mno := inst DIV 100000H MOD 10H;
      disp := inst MOD 1000H;
-     a:=inst DIV 1000000H MOD 20H;
-     v:=inst DIV 20000000H MOD 8;
+     a := inst DIV 1000000H MOD 20H;
+     v := inst DIV 20000000H MOD 8;
+     h := inst DIV 100000000H * 100000000H;
      Out.Char(CHR(ORD("0")+a));
      IF v = 0 THEN (* Ldr *) v:=0F9400000H + (mod.num * 400H) + (MT*20H) + a END;
      IF v = 1 THEN (* Str *) v:=0F9000000H + (mod.num * 400H) + (MT*20H) + a END;
@@ -421,12 +417,12 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
   END SetFormat;
 
 
-  PROCEDURE Link*(name: ARRAY OF CHAR; format: INTEGER);
+  PROCEDURE Link*(name: ARRAY OF CHAR; format: INTEGER; incRuntime: BOOLEAN);
 
     VAR
-      ProgEntry: INTEGER;
+      BootEntry,ProgEntry: INTEGER;
 (*      Lname : ModuleName; *)
-      fname: OAS.Ident;
+      fname,mname: OAS.Ident;
       F: Files.File;
 (*      M, p : Module;  *)
       i : INTEGER;
@@ -439,6 +435,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     i:= cOrg; WHILE i < cLim DO SYSTEM.PUT(i, 0 ); INC(i,8) END;   
 
     MTOrg := kOrg + 128; MTSpan := 0; MRoot := NIL;
+    mname := "Modules";
     OAB.MakeFileName(fname, name, ".bin");
     F := Files.New(fname); 
     SetFormat( format );
@@ -447,13 +444,21 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     Emit("   +  Loading          dAt      #imps    #td    q-p     cb               ce   #cmd  #entr  PRefs             Body  T        PHead ");
     EmitLn; Emit("   |    ");
 
-    ok := LinkOne( name , M, ProgEntry );
+    IF incRuntime THEN
+      ok := LinkOne( mname , M, BootEntry );
+      IF ok THEN
+        ok := LinkOne( name , M, ProgEntry );
+        SYSTEM.PUT(MTOrg - 8, ProgEntry );
+      END
+    ELSE
+        ok := LinkOne( name , M, BootEntry )
+    END;
 
     bfo.Write( C, dAt, cAt);
 
     IF ok THEN
       Emit(" Data:"); Out.Hex(cLim - dAt); Emit(" At:"); Out.Hex(10000C000H-(cLim-dAt)); Emit(" Code:"); Out.Hex(cAt - cOrg); Emit( " Entry at: "); Out.Hex(ProgEntry);EmitLn;
-      bfo.Finish( F, K, 1, ProgEntry );
+      bfo.Finish( F, K, 1, BootEntry );
       Files.Register(F); Files.Close(F);
       Emit( " linked with "); Out.Int(MTSpan,4);Emit(" modules.");EmitLn
     ELSE
