@@ -1,0 +1,16 @@
+MODULE J;
+IMPORT Modules;
+
+VAR d: INTEGER;
+
+PROCEDURE P(a,b:INTEGER);
+VAR
+  c: INTEGER;
+BEGIN
+  IF a = b THEN c := 1; d := 1 END
+END P;
+
+BEGIN
+ P(1,2)
+END J.
+

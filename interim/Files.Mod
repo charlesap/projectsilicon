@@ -1,15 +1,10 @@
 MODULE Files;
+  IMPORT SYSTEM, Kernel, FileDir;
 
   CONST
 
   TYPE 
-
-
-
     DiskAdr = INTEGER;
-
-
-
     Buffer  = POINTER TO BufferRecord;
     File*   = POINTER TO FileDesc;
     Index   = POINTER TO IndexRecord;
@@ -23,23 +18,21 @@ MODULE Files;
       END ;
 
     FileDesc =
-      RECORD next: INTEGER; 
+      RECORD next: INTEGER 
       END ;
-
 
     BufferRecord =
       RECORD apos, lim: INTEGER;
         mod: BOOLEAN;
-        next: Buffer;
+        next: Buffer
       END ;
 
     IndexRecord =
       RECORD adr: DiskAdr;
-        mod: BOOLEAN;
+        mod: BOOLEAN
       END ;
 
-
-
+  VAR root: INTEGER (*File*);  (*list of open files*)
 
   PROCEDURE Old*(name: ARRAY OF CHAR): File;
     VAR 
@@ -47,8 +40,6 @@ MODULE Files;
   BEGIN f := NIL; 
     RETURN f
   END Old;
-
-
 
   PROCEDURE New*(name: ARRAY OF CHAR): File;
     VAR 
@@ -130,7 +121,9 @@ MODULE Files;
     Write(R, x MOD 80H)
   END WriteNum;
 
-
+  PROCEDURE Init*;
+  BEGIN root := 0; Kernel.Init; FileDir.Init
+  END Init;
 
 BEGIN 
 END Files.
