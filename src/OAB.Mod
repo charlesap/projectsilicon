@@ -459,7 +459,8 @@ BEGIN
   enter("VAL", SFunc, intType, 162);
   enter("REG", SFunc, intType, 151);
   enter("BIT", SFunc, boolType, 142);
-  enter("SYSCALL", SProc, noType, 151);  (*procedures*)
+  enter("SYSCALL", SProc, noType, 161);  (*procedures*)
+  enter("CALL", SProc, noType, 151);
   enter("LDREG", SProc, noType, 142);
   enter("LDPSR", SProc, noType, 131);
   enter("COPY", SProc, noType, 123);

@@ -468,7 +468,8 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
       ELSIF pno = 12 THEN CheckInt(x); CheckInt(y); CheckInt(z); OAG.Copy(x, y, z)
       ELSIF pno = 13 THEN CheckConst(x); CheckInt(x); OAG.LDPSR(x)
       ELSIF pno = 14 THEN CheckInt(x); OAG.LDREG(x, y)
-      ELSIF pno = 15 THEN CheckInt(x); OAG.SYSCALL(x)
+      ELSIF pno = 15 THEN CheckInt(x); OAG.CALL(x)
+      ELSIF pno = 16 THEN CheckInt(x); OAG.SYSCALL(x)
       END
     ELSE OAS.Mark("wrong nof parameters")
     END

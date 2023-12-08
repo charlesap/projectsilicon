@@ -1229,6 +1229,15 @@ v overflow
     END
   END LDREG;
 
+  PROCEDURE CALL*(VAR x: Item);
+  BEGIN
+(*
+    IF y.mode = OAB.Const THEN APut1a(Mov, x.a, 0, y.a)
+    ELSE load(y); APut0(Mov, x.a, 0, y.r); DEC(RH)
+    END
+*)
+  END CALL;
+
   PROCEDURE SYSCALL*(VAR x: Item);
   BEGIN
 (*
