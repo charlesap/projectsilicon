@@ -17,7 +17,7 @@ MODULE Modules;  (*Link and load on AARCH64; NW 20.10.2013 / 8.1.2019, CP 2023*)
   VAR root*, M: Module;
     MTOrg*, AllocPtr*, res*: INTEGER;
     importing*, imported*: ModuleName;
-    limit: INTEGER;
+    limit, LinkEntry: INTEGER;
 (*
   PROCEDURE ThisFile(name: ARRAY OF CHAR): Files.File;
     VAR i: INTEGER;
@@ -223,7 +223,15 @@ MODULE Modules;  (*Link and load on AARCH64; NW 20.10.2013 / 8.1.2019, CP 2023*)
 *)
   END Init;
 
-BEGIN Init; (*Load("Oberon", M);
-    LED(res); REPEAT UNTIL FALSE *) (*only if load fails*)
+BEGIN 
+  (* Init;  *)
+  SYSTEM.GET( 100004000H + 120, LinkEntry); 
+  IF LinkEntry # 0 THEN
+    SYSTEM.CALL(LinkEntry)
+  ELSE
+    (*Load("Oberon", M);
+    LED(res); *)
+  END;
+  REPEAT UNTIL FALSE  (*only if load fails*)
 END Modules.
 

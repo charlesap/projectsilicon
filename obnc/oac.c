@@ -45,6 +45,8 @@ int main(int argc, char *argv[])
 	    printf("\n"); 
 	    printf("   Symbol File Options:\n"); 
 	    printf("      s  newSF  \n"); 
+	    printf("   Symbol File Options:\n"); 
+	    printf("      o  Oberon runtime  \n"); 
     }
     return 0;
 }

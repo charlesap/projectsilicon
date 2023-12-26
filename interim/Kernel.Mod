@@ -16,7 +16,8 @@ MODULE Kernel;  (*NW/PR  11.4.86 / 27.12.95 / 4.2.2014*)
     data: INTEGER; (*SPI data in*)
 
   PROCEDURE Init*;
-  BEGIN 
+  BEGIN
+    SYSTEM.SYSCALL(1) 
   END Init;
 
 END Kernel.

@@ -1,20 +1,15 @@
 MODULE I;
 
-  CONST s = "This is a string.";
+VAR d: INTEGER;
 
-    TYPE Item* = RECORD
-      r*: INTEGER;
-      s*: REAL;
-    END ;
-
-  VAR x,y: INTEGER;
+PROCEDURE P(a,b:INTEGER);
+VAR
+  c: INTEGER;
+BEGIN
+  IF a = b THEN c := 1; d := 1 END
+END P;
 
 BEGIN
-  x:=7;
-  IF x = 12 THEN
-    y := 3
-  ELSE
-    y := 4
-  END
+ P(1,2)
 END I.
 

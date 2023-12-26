@@ -6,7 +6,7 @@
         o: OAP.Options;
 
     BEGIN
-        o:="-rs";
+        o:="-rso";
         f:="M.Mod";
-	OAP.Compile(f,"-rs");
+	OAP.Compile(f,"-rso");
     END oac.

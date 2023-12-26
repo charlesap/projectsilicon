@@ -1,5 +1,4 @@
 MODULE J;
-IMPORT Modules;
 
 VAR d: INTEGER;
 

@@ -121,7 +121,7 @@ MODULE Files;
     Write(R, x MOD 80H)
   END WriteNum;
 
-  PROCEDURE Init*;
+  PROCEDURE Init*;  (* argc in x0, argv in x1 *)
   BEGIN root := 0; Kernel.Init; FileDir.Init
   END Init;
 

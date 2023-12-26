@@ -448,7 +448,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       ok := LinkOne( mname , M, BootEntry );
       IF ok THEN
         ok := LinkOne( name , M, ProgEntry );
-        SYSTEM.PUT(MTOrg - 8, ProgEntry );
+        SYSTEM.PUT(MTOrg - 8, fcOrg + ProgEntry );
       END
     ELSE
         ok := LinkOne( name , M, BootEntry )

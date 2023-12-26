@@ -5,13 +5,13 @@ TYPE
 
   RDesc = RECORD
     i:INTEGER
-  END:
+  END;
 
 
 PROCEDURE Q* (t:INTEGER);
   VAR r:RP;
 BEGIN
-  rp.i:=t
+  r.i:=t
 END Q;
 
 

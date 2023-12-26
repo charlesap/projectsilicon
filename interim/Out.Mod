@@ -4,6 +4,10 @@ MODULE Out;
   BEGIN
   END Ln;
 
+  PROCEDURE Char*(c: CHAR);
+  BEGIN
+  END Char;
+
   PROCEDURE String*(s: ARRAY OF CHAR);
   BEGIN
   END String;

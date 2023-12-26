@@ -1,9 +1,16 @@
 MODULE H;
 IMPORT E,F,G;
 
+PROCEDURE A;
 BEGIN
-  F.Q;
-  G.Q;
-  G.Y
+
+END A;
+
+BEGIN
+  F.Q(5);
+  G.Q(6);
+  G.Y(7);
+  G.P(8);
+  A
 END H.
 
