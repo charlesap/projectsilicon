@@ -55,7 +55,7 @@ codesign -s - J.bin
 #objdump -l -j __d000 J.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 J.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -mso K.Mod
+../obnc/oac -ms K.Mod
 codesign -s - K.bin
 
 

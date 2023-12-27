@@ -1238,13 +1238,12 @@ v overflow
 *)
   END CALL;
 
-  PROCEDURE SYSCALL*(VAR x: Item);
+  PROCEDURE SYSCALL*(VAR y: Item);
   BEGIN
-(*
-    IF y.mode = OAB.Const THEN APut1a(Mov, x.a, 0, y.a)
-    ELSE load(y); APut0(Mov, x.a, 0, y.r); DEC(RH)
-    END
-*)
+    IF y.mode = OAB.Const THEN APut1a(Mov, 16, 0, y.a)
+    ELSE load(y); APut0(Mov, 16, 0, y.r); DEC(RH)
+    END;
+    Put32(code, pc, 0D4001001H); INC(pc)
   END SYSCALL;
 
   (*In-line code functions*)
