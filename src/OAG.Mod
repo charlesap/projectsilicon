@@ -125,13 +125,14 @@ op + U=2000H
     IF op = Mov THEN
      IF op < 2000H THEN
       IF (( a # SP ) & ( c # SP )) THEN
-        v:=0AAH + c*10H + 3 * 10000H + (0E0H+a)*1000000H;
+        v:=0AA0003E0H + c*10000H + a; 
+(*        v:=0AAH + c*10H + 3 * 10000H + (0E0H+a)*1000000H; *)
       END;
       IF (( a = SP ) & ( c # SP )) THEN
         v:=091H + (1FH+(a*2))*1000000H;
       END;
       IF (( a # SP ) & ( c = SP )) THEN
-        v:=091H + 3*10000H + (0E0H+a)*1000000H;
+        v:=0910003FDH;   (* mov x29, sp = 910003fd *)
       END;
      ELSE (* has U flag *)
           (* V=0: R.A:=H *)
@@ -193,7 +194,7 @@ op + U=2000H
 *)
 
   PROCEDURE APut1(op, a, b, im: INTEGER);
-    VAR v: INTEGER;
+    VAR v,t: INTEGER;
   BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
     v:= 0EEEEEEEEH;
     IF op = Mov THEN
@@ -206,25 +207,47 @@ op + U=2000H
          OAS.Mark("can't shift left")
        END
      END
-    ELSE (* not Mov *)  
-      IF op = Lsl THEN v:= 0D37FF400H + ((0 - im) MOD 40H)*10000H + b*20H + a END; (* negative immediate, positive is lsr *)
-      IF op = Asr THEN v:= 09340FC00H + im*10000H + b*20H + a END; 
-      IF op = Ror THEN v:= 093C00000H + im*10000H + b*20H + a END; 
-      IF op = Ann THEN v:= 022222222H END;
-      IF op = And THEN v:= 0F2000000H END; (*ugly*)
-      IF op = Ior THEN v:= 0B2000000H END; (*ugly*)
-      IF op = Xor THEN v:= 0D2000000H END; (*ugly*)
-      IF op = Add THEN (* u=1: with carry *)
-        v:= 091000000H; v:=v + (im*400H) + (b*20H) + a
-      END;
-      IF op = Sub THEN (* u=1: with carry *)
-        v:= 0D1000000H; v:=v + (im*400H) + (b*20H) + a
-      END;
-      IF op = Mul THEN (* u=1: unsigned *)
-        v:= 99999999H; v:=v + (im*400H) + (b*20H) + a
-      END;
-      IF op = Div THEN v:= 0AAAAAAAAH END;
-(*      v:=v + (im*400H) + (b*20H) + a; *)
+    ELSE (* not Mov *) 
+      IF op = Lsl THEN
+        v:= (64 - (im MOD 64) + 0D340H) * 10000H + (47) * 400H + b*20H + a; 
+        (* v:= 0D37FF400H + ((0 - im) MOD 40H)*10000H + b*20H + a *)
+      ELSIF a = b THEN 
+        IF op = Asr THEN v:= 09340FC00H + im*10000H + b*20H + a END; 
+        IF op = Ror THEN v:= 093C00000H + im*10000H + b*20H + a END; 
+        IF op = Ann THEN v:= 022222222H END;
+        IF op = And THEN v:= 0F2000000H END; (*ugly*)
+        IF op = Ior THEN v:= 0B2000000H END; (*ugly*)
+        IF op = Xor THEN v:= 0D2000000H END; (*ugly*)
+        IF op = Add THEN (* u=1: with carry *)
+          v:= 0B1000000H; v:=v + ((im MOD 1000H ) * 400H) + (b*20H) + a
+        END;
+        IF op = Sub THEN (* u=1: with carry *)
+          v:= 0D1000000H; v:=v + (im*400H) + (b*20H) + a
+        END;
+        IF op = Mul THEN (* u=1: unsigned *)
+          v:= 99999999H; v:=v + (im*400H) + (b*20H) + a
+        END;
+        IF op = Div THEN v:= 0AAAAAAAAH END;
+          (*  v:=v + (im*400H) + (b*20H) + a; *)
+      ELSE
+        IF op = Asr THEN v:= 09340FC00H + im*10000H + b*20H + a END; 
+        IF op = Ror THEN v:= 093C00000H + im*10000H + b*20H + a END; 
+        IF op = Ann THEN v:= 022222222H END;
+        IF op = And THEN v:= 0F2000000H END; (*ugly*)
+        IF op = Ior THEN v:= 0B2000000H END; (*ugly*)
+        IF op = Xor THEN v:= 0D2000000H END; (*ugly*)
+        IF op = Add THEN (* u=1: with carry *)
+          v:= 091000000H; v:=v + (im*400H) + (b*20H) + a
+        END;
+        IF op = Sub THEN (* u=1: with carry *)
+          v:= 0D1000000H; v:=v + (im*400H) + (b*20H) + a
+        END;
+        IF op = Mul THEN (* u=1: unsigned *)
+          v:= 99999999H; v:=v + (im*400H) + (b*20H) + a
+        END;
+        IF op = Div THEN v:= 0AAAAAAAAH END;
+          (*  v:=v + (im*400H) + (b*20H) + a; *)
+      END
     END;
     Put32(code, pc, v );
     INC(pc)
@@ -242,8 +265,29 @@ op + U=2000H
 *)
 
   PROCEDURE APut1a(op, a, b, im: INTEGER);
+    VAR s,x,o:INTEGER;
   BEGIN (*same as Put1, but with range test  -10000H <= im < 10000H*)
-    APut1(op, a, b, im)
+    IF (im >= -10000H) & (im <= 0FFFFH) THEN APut1(op, a, b, im)
+    ELSE 
+      o:=Mov; s:=1000000000000000H;
+      WHILE s > 100H DO 
+        x:=im DIV s MOD 1000H;
+        IF x # 0 THEN
+          APut1(o, RH, RH, x);
+          o:=Add;
+        END;
+        s:=s DIV 1000H;
+        IF o # Mov THEN
+          APut1(Lsl, RH, RH, 12);
+        END
+      END;
+      x:=im MOD 1000H;
+      IF x # 0 THEN
+        APut1(o, RH, RH, x);
+      END;
+
+      APut0(op, a, b, RH)
+    END
   END APut1a;
 
 (*
@@ -505,7 +549,7 @@ v overflow
       END ;
       x.r := RH; incR
     ELSIF x.mode = OAB.Par THEN APut2(Ldr, RH, SP, x.a + frame);
-      IF x.b # 0 THEN APut1a(Add, RH, RH, x.b) END ;
+      IF x.b # 0 THEN APut1a(Add, RH, RH, x.b) END ; 
       x.r := RH; incR
     ELSIF x.mode = RegI THEN
       IF x.a # 0 THEN APut1a(Add, x.r, x.r, x.a) END
@@ -533,7 +577,7 @@ v overflow
   END loadTypTagAdr;
 
   PROCEDURE loadStringAdr(VAR x: Item);
-  BEGIN GetSB(0); APut1a(Add, RH, RH, varsize+x.a); x.mode := Reg; x.r := RH; incR
+  BEGIN  GetSB(0);  APut1a(Add, RH, RH, varsize+x.a);  x.mode := Reg; x.r := RH; incR
   END loadStringAdr;
 
   (* Items: Conversion from constants or from Objects on the Heap to Items on the Stack*)
@@ -1112,7 +1156,7 @@ v overflow
       a:=locblksize MOD 16;
       IF a # 0 THEN INC(locblksize,16-a) END;
       a := 8; r := 0;
-      APut1(Sub, SP, SP, 16); APut2(Stp, FP, SP, -16); APut1(Mov, FP, SP, 0); APut1(Sub, SP, SP, locblksize); 
+      APut2(Stp, FP, SP, -16 - locblksize); APut0(Mov, FP, 0, SP);
       WHILE a < parblksize DO APut2(Str, r, SP, a); INC(r); INC(a, 8) END
     ELSE (*interrupt procedure*)
       APut1(Sub, SP, SP, locblksize); APut2(Stp, 0, SP, 0); APut2(Stp, 2, SP, 16)
@@ -1127,9 +1171,7 @@ v overflow
     a:=size MOD 16;
     IF a # 0 THEN INC(size,16-a) END;
     IF ~int THEN (*procedure epilog*) 
-      APut1(Add, SP, SP, size);    
-      APut2(Ldp, FP, SP, 16);
-      APut1(Add, SP, SP, 16);    
+      APut2(Ldp, FP, SP, 16 + size);
       APut3(BR, 7, LNK)
     ELSE (*interrupt return, restore R2, R1, R0*)
       APut2(Ldr, 2, SP, 8); APut2(Ldr, 1, SP, 4); APut2(Ldr, 0, SP, 0); APut1(Add, SP, SP, size);
@@ -1324,7 +1366,7 @@ v overflow
   END H;
 
   PROCEDURE Adr*(VAR x: Item);
-  BEGIN 
+  BEGIN
     IF x.mode IN {OAB.Var, OAB.Par, RegI} THEN loadAdr(x)
     ELSIF (x.mode = OAB.Const) & (x.type.form = OAB.Proc) THEN load(x)
     ELSIF (x.mode = OAB.Const) & (x.type.form = OAB.String) THEN loadStringAdr(x)
@@ -1350,7 +1392,7 @@ v overflow
   PROCEDURE Header*;
   BEGIN entry := pc*4;
     IF version = 0 THEN Put32(code, 0, 0E7000000H-1 + pc);  APut1a(Mov, SP, 0, StkOrg0)  (*RISC-0*)
-    ELSE APut1(Sub, SP, SP, 16); APut2(Stp, FP, SP, 0); APut1(Mov, FP, SP, 0)
+    ELSE APut2(Stp, FP, SP, 0); APut0(Mov, FP, 0, SP)
     END
   END Header;
 
@@ -1390,7 +1432,7 @@ v overflow
   BEGIN  (*exit code*)
     IF verbose THEN EmitLn; Emit("Writing object file"); EmitLn; END;
     IF version = 0 THEN APut1(Mov, 0, 0, 0); APut3(BR, 7, 0)  (*RISC-0*)
-    ELSE APut2(Ldp, FP, SP, 0); APut1(Add, SP, SP, 16); APut3(BR, 7, LNK) (* Ldp = FP + LNK *)
+    ELSE APut2(Ldp, FP, SP, 16); APut3(BR, 7, LNK) (* Ldp = FP + LNK *)
     END ;
     IF pc MOD 2 # 0 THEN INC( pc ) END;
     obj := OAB.topScope.next; nofimps := 0; comsize := 8; nofptrs := 0;

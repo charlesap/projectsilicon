@@ -1,8 +1,9 @@
 MODULE K;
-IMPORT Out;
-
+IMPORT SYSTEM, Out;
 
 BEGIN
- Out.Char("!")
+  (* 100004080H *)
+  SYSTEM.LDREG(28,100004080H);
+  Out.Char("!")
 END K.
 
