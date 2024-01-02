@@ -452,15 +452,18 @@ BEGIN
   topScope := NIL; OpenScope; topScope.next := system; universe := topScope;
   
   system := NIL;  (* initialize "unsafe" pseudo-module SYSTEM*)
-  enter("H", SFunc, intType, 201);     (*functions*)
+  enter("ATE", SFunc, intType, 221);     (*functions*)
+  enter("ATB", SFunc, intType, 211);
+  enter("H", SFunc, intType, 201);
   enter("COND", SFunc, boolType, 191);
   enter("SIZE", SFunc, intType, 181);
   enter("ADR", SFunc, intType, 171);
   enter("VAL", SFunc, intType, 162);
   enter("REG", SFunc, intType, 151);
   enter("BIT", SFunc, boolType, 142);
-  enter("SYSCALL", SProc, noType, 161);  (*procedures*)
-  enter("CALL", SProc, noType, 151);
+  enter("SYSCALL", SProc, noType, 171);  (*procedures*)
+  enter("CALL", SProc, noType, 161);
+  enter("EXIT", SProc, noType, 151);
   enter("LDREG", SProc, noType, 142);
   enter("LDPSR", SProc, noType, 131);
   enter("COPY", SProc, noType, 123);

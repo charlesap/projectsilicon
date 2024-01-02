@@ -14,9 +14,10 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     Mov = 0; Lsl = 1; Asr = 2; Ror= 3; And = 4; Ann = 5; Ior = 6; Xor = 7;
     Add = 8; Sub = 9; Cmp = 9; Mul = 10; Div = 11;
     Fad = 12; Fsb = 13; Fml = 14; Fdv = 15;
-    Ldr = 8; Str = 10; Ldp = 16; Stp = 18;
+    Ldr = 8; Ldb = 9; Str = 10; Stb = 11; Ldp = 16; Stp = 18;
     BR = 0; BLR = 1; BC = 2; BL = 3;
     MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
+    Ate = 0; Atb = 1;
 
     TYPE Item* = RECORD
       mode*: INTEGER;
@@ -211,6 +212,7 @@ op + U=2000H
       IF op = Lsl THEN
         v:= (64 - (im MOD 64) + 0D340H) * 10000H + (47) * 400H + b*20H + a; 
         (* v:= 0D37FF400H + ((0 - im) MOD 40H)*10000H + b*20H + a *)
+(*
       ELSIF a = b THEN 
         IF op = Asr THEN v:= 09340FC00H + im*10000H + b*20H + a END; 
         IF op = Ror THEN v:= 093C00000H + im*10000H + b*20H + a END; 
@@ -229,6 +231,7 @@ op + U=2000H
         END;
         IF op = Div THEN v:= 0AAAAAAAAH END;
           (*  v:=v + (im*400H) + (b*20H) + a; *)
+*)
       ELSE
         IF op = Asr THEN v:= 09340FC00H + im*10000H + b*20H + a END; 
         IF op = Ror THEN v:= 093C00000H + im*10000H + b*20H + a END; 
@@ -302,8 +305,8 @@ op + U=2000H
     VAR v: INTEGER;
   BEGIN (*emit load/store instruction*)
     v := 077777777H;
-    IF op = Stp THEN v:= 0A9BF7BFDH  END; (* x29, x30, [sp, #-16]! *)
-    IF op = Ldp THEN v:= 0A8C17BFDH  END; (* x29, x30, [sp], #16   *)
+    IF op = Stp THEN v:= 0A9BF7BFDH END; (* x29, x30, [sp, #-16]! *)
+    IF op = Ldp THEN v:= 0A8C17BFDH END; (* x29, x30, [sp], #16   *)
     IF op = Str THEN
       IF off < 0 THEN
         v:= 0F81F8000H + (off DIV 8 * 400H) + (b*20H) + a;
@@ -313,6 +316,20 @@ op + U=2000H
     END;
     IF op = Ldr THEN
       IF off < 0 THEN
+        v:= 0F85F8000H + (off DIV 8 * 400H) + (b*20H) + a;
+      ELSE
+        v:= 0F9400000H + (off DIV 8 * 400H) + (b*20H) + a
+      END
+    END;
+    IF op = Stb THEN
+      IF off < 0 THEN (*FIXME*)
+        v:= 0F81F8000H + (off DIV 8 * 400H) + (b*20H) + a;
+      ELSE
+        v:= 0F9000000H + (off DIV 8 * 400H) + (b*20H) + a;
+      END
+    END;
+    IF op = Ldb THEN
+      IF off < 0 THEN (*FIXME*)
         v:= 0F85F8000H + (off DIV 8 * 400H) + (b*20H) + a;
       ELSE
         v:= 0F9400000H + (off DIV 8 * 400H) + (b*20H) + a
@@ -401,6 +418,22 @@ v overflow
   blr <Xn>      -- absolute branch to address in register Xn
 *)
 
+  PROCEDURE APut4(op, a: INTEGER);
+    VAR v: INTEGER;
+       ok: BOOLEAN;
+  BEGIN (*emit special instruction*)
+    ok:= FALSE;
+    IF op = Ate THEN (* Adr opcode *)
+      Put32(code, pc, 10000000H + a); INC(pc)
+    END;
+    IF op = Atb THEN (* Adr opcode *)
+      Put32(code, pc, 14000003H); INC(pc); (* use as slot for fixup list *)
+      Put32(code, pc, (pc*4) MOD 100000000H); INC(pc);
+      Put32(code, pc, 0); INC(pc);
+      Put32(code, pc, 10FFFFC0H + a); INC(pc);
+      Put32(code, pc,0F9400000H + a*20H + a); INC(pc);
+    END
+  END APut4;
 
   PROCEDURE Pad4*;
   BEGIN
@@ -1156,7 +1189,7 @@ v overflow
       a:=locblksize MOD 16;
       IF a # 0 THEN INC(locblksize,16-a) END;
       a := 8; r := 0;
-      APut2(Stp, FP, SP, -16 - locblksize); APut0(Mov, FP, 0, SP);
+      APut2(Stp, FP, SP, -16 - locblksize); APut0(Mov, FP, 0, SP); APut1(Sub, SP, SP, locblksize);
       WHILE a < parblksize DO APut2(Str, r, SP, a); INC(r); INC(a, 8) END
     ELSE (*interrupt procedure*)
       APut1(Sub, SP, SP, locblksize); APut2(Stp, 0, SP, 0); APut2(Stp, 2, SP, 16)
@@ -1171,6 +1204,7 @@ v overflow
     a:=size MOD 16;
     IF a # 0 THEN INC(size,16-a) END;
     IF ~int THEN (*procedure epilog*) 
+      APut1(Add, SP, SP, size);
       APut2(Ldp, FP, SP, 16 + size);
       APut3(BR, 7, LNK)
     ELSE (*interrupt return, restore R2, R1, R0*)
@@ -1280,6 +1314,15 @@ v overflow
 *)
   END CALL;
 
+  PROCEDURE EXIT*(VAR y: Item);
+  BEGIN
+    IF y.mode = OAB.Const THEN APut1a(Mov, 0, 0, y.a)
+    ELSE load(y); APut0(Mov, 0, 0, y.r); DEC(RH)
+    END;
+    APut1(Mov, 16, 0, 1);
+    Put32(code, pc, 0D4001001H); INC(pc)
+  END EXIT;
+
   PROCEDURE SYSCALL*(VAR y: Item);
   BEGIN
     IF y.mode = OAB.Const THEN APut1a(Mov, 16, 0, y.a)
@@ -1377,6 +1420,16 @@ v overflow
   PROCEDURE Condition*(VAR x: Item);
   BEGIN (*x.mode = Const*) SetCC(x, x.a)
   END Condition;
+
+  PROCEDURE ATB*(VAR x: Item);
+  BEGIN (*x.mode = Const*)
+    APut4(Atb, RH); x.mode := Reg; x.r := RH; incR
+  END ATB;
+
+  PROCEDURE ATE*(VAR x: Item);
+  BEGIN (*x.mode = Const*)
+    APut4(Ate, RH); x.mode := Reg; x.r := RH; incR
+  END ATE;
 
   PROCEDURE Open*(v: INTEGER; vb: BOOLEAN);
   BEGIN pc := 0; tdx := 0; strx := 0; RH := 0; fixorgP := 0; fixorgD := 0; fixorgT := 0; check := v # 0; version := v; verbose := vb;

@@ -199,11 +199,11 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
                          
     (* misc bookkeeping to satisfy the loader *)
 
-    WR( 0000002000000000H );
-    WR( 0000003000000030H );
-    WR( 0000000100000000H );
-    WR( 0000000000000000H );
-    WR( 0000000000000003H );
+    WR( 0000002000000000H ); (* starts_offset  / fixups_version *)
+    WR( 0000003000000030H ); (* symbols_offset / imports_offset *)
+    WR( 0000000100000000H ); (* imports_format / imports_count  *)
+    WR( 0000000000000000H ); (* na             / symbols_format *)
+    WR( 0000000000000003H ); (* seg_info_offset[1] / seg_count;6  *)
     WR( 0000000000000000H );
     WR( 0000000000000000H );
     WR( 00000209005F0100H );
@@ -269,11 +269,11 @@ MODULE Macho;  (*Write a MACHO file cp 2023*)
     Section(    "__text", "__TEXT",        100003F90H,       1CH, 400003F90H,         0,  80000400H    );
     Section(    "__unwind_info", "__TEXT", 100003FACH,       48H, 400003FACH,         0,         0     );
     Segment( 1, "__K000",                  100004000H,     4000H,      4000H,     4000H, 300000003H, 0 );
-    Section(    "__k000", "__K000",        100004000H,     4000H, 400004000H,         0,         0     );
+    Section(    "__k000", "__K000",        100004000H,     4000H, 400004000H,         0,         1     );
     D:="__D000"; d:="__d000";
     C:="__C000"; c:="__c000";
     Segment( 1, D,                         100008000H,     4000H,      8000H,     4000H, 300000003H, 0 );
-    Section(    d, D,                      100008000H,     4000H, 400008000H,         0,         0     );
+    Section(    d, D,                      100008000H,     4000H, 400008000H,         0,         1     );
     Segment( 1, C,                         10000C000H,     4000H,     0C000H,     4000H, 500000005H, 0 );
     Section(    c, C,                      10000C000H,     4000H, 40000C000H,         0,  80000400H    );
     i:=1; WHILE i < N DO   x:=8000H*(i); Bump(D[5]); Bump(d[5]); Bump(C[5]); Bump(c[5]);
