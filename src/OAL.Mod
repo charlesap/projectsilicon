@@ -125,6 +125,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
       INC(MTSpan);
       mod.data := p - cLim + fcOrg;  (*to be adjusted at binary finalization*)
       SYSTEM.PUT(mod.num * 8 + MTOrg, p - cLim + fcOrg );
+      SYSTEM.PUT(MTOrg, mod.num);
 
 
       Files.ReadInt(R, n);

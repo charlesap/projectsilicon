@@ -244,7 +244,7 @@ op + U=2000H
           v:= 091000000H; v:=v + (im*400H) + (b*20H) + a
         END;
         IF op = Sub THEN (* u=1: with carry *)
-          v:= 0D1000000H; v:=v + (im*400H) + (b*20H) + a
+          v:= 0F1000000H; v:=v + (im*400H) + (b*20H) + a
         END;
         IF op = Mul THEN (* u=1: unsigned *)
           v:= 99999999H; v:=v + (im*400H) + (b*20H) + a
@@ -394,7 +394,7 @@ v overflow
       IF cond = GT THEN v:= 54000008H END;
       IF cond = MI THEN v:= 54000005H END;
       IF cond = PL THEN v:= 54000006H END;
-      Put32(code, pc, v + (off MOD 80000)*20H );
+      Put32(code, pc, v + (off MOD 80000H)*20H  );
       ok:= TRUE;
       INC(pc)
     END;
@@ -1123,13 +1123,13 @@ v overflow
   END CFJump;
 
   PROCEDURE BJump*(L: INTEGER);
-  BEGIN APut3(BC, 7, L-(pc)-1)
+  BEGIN APut3(BC, 7, L-(pc))
   END BJump;
 
   PROCEDURE CBJump*(VAR x: Item; L: INTEGER);
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
-    APut3(BC, negated(x.r), L-(pc)-1); FixLink(x.b); FixLinkWith(x.a, L)
+    APut3(BC, negated(x.r), L-(pc)); FixLink(x.b); FixLinkWith(x.a, L)
   END CBJump;
 
   PROCEDURE Fixup*(VAR x: Item);

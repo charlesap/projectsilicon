@@ -44,21 +44,21 @@ IMPORT SYSTEM;
   END Hex;
 
   PROCEDURE Init*;
-    VAR e,f,g,h,i:INTEGER;
+    VAR e,f,g,h,i,j:INTEGER;
   BEGIN
     e:=SYSTEM.ATE(0);
     f:=SYSTEM.ATB(0);
     g:=(e-(f+10000C000H))+12;
     h:=100004080H + g;
     SYSTEM.LDREG(28,h);
-    h:=h+8;
     SYSTEM.GET(h,i);
-    i:=i+g;
-    SYSTEM.PUT(h,i);
-    h:=h+8;
-    SYSTEM.GET(h,i);
-    i:=i+g;
-    SYSTEM.PUT(h,i);
+    WHILE i > 0 DO
+      h:=h+8;
+      SYSTEM.GET(h,j);
+      j:=j+g;
+      SYSTEM.PUT(h,j);
+      DEC(i)
+    END;
     NL:=0AH;
   END Init;
 
