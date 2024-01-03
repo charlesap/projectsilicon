@@ -3,9 +3,9 @@ IMPORT SYSTEM, Out;
 
 BEGIN
   Out.Init;
-  Out.String("!");
+  Out.String("Hello!");
   Out.Ln;
-  Out.String("?");
+  Out.String("Ready?");
   Out.Ln
 END K.
 

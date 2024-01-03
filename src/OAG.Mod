@@ -198,6 +198,7 @@ op + U=2000H
     VAR v,t: INTEGER;
   BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
     v:= 0EEEEEEEEH;
+    IF op > 16 THEN v:= 0EE000000H + op;(* op:= op MOD 16*) END;
     IF op = Mov THEN
      IF a = SP THEN
       OAS.Mark("no constant to stack pointer")
@@ -554,8 +555,9 @@ v overflow
           ELSE GetSB(x.r); APut1(Add, RH, RH, x.a + 100H) (*mark as progbase-relative*)
           END
         ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN APut1(Mov, RH, 0, x.a)
-        ELSE APut1(Mov+U, RH, 0, x.a DIV 10000H MOD 10000H);
-          IF x.a MOD 10000H # 0 THEN APut1(Ior, RH, RH, x.a MOD 10000H) END
+        ELSE APut1a(Mov, RH, 0, x.a)
+          (* APut1(Mov+U, RH, 0, x.a DIV 10000H MOD 10000H);
+          IF x.a MOD 10000H # 0 THEN APut1(Ior, RH, RH, x.a MOD 10000H) END *)
         END ;
         x.r := RH; incR
       ELSIF x.mode = OAB.Var THEN

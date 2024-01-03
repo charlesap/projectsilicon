@@ -13,6 +13,12 @@ cd interim
 echo
 echo
 echo "in interim"
+#rm tmp.entitlements
+#/usr/libexec/PlistBuddy -c "Add :com.apple.security.get-task-allow bool true" tmp.entitlements
+#/usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.allow-jit bool true" tmp.entitlements
+#/usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.allow-unsigned-executable-memory bool true" tmp.entitlements
+#/usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" tmp.entitlements
+#/usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-executable-page-protection bool true" tmp.entitlements
 
 ../obnc/oac -s Kernel.Mod
 ../obnc/oac -s FileDir.Mod
@@ -56,6 +62,7 @@ codesign -s - J.bin
 #objdump -d -j __c000 J.bin | grep '\.\.\.\|^10'
 
 ../obnc/oac -ms K.Mod
+#codesign -s - --entitlements tmp.entitlements K.bin
 codesign -s - K.bin
 objdump -l -j __k000 K.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 objdump -l -j __d000 K.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
