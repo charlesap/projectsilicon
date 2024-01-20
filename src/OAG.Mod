@@ -18,6 +18,86 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     BR = 0; BLR = 1; BC = 2; BL = 3;
     MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
     Ate = 0; Atb = 1;
+    Madd = 0; Madds = 1; Msub = 2; Msubs = 3;
+
+    TARGETPCEXIT = 0;
+    TARGETPCENTER = 0101H;
+    BADOPCODE = 0;
+    ASADD = 0;
+    ASADDS = 1;
+    ASSUB = 2;
+    ASSUBS = 3;
+
+    (* sz    V   op *)
+    LSSTRB   =  00000000H;
+    LSLDRB   =  00400000H;
+    LSLDRSBX =  00800000H;
+    LSLDRSBW =  00C00000H;
+    LSSTRH   =  40000000H;
+    LSLDRH   =  40400000H;
+    LSLDRSHX =  40800000H;
+    LSLDRSHW =  40C00000H;
+    LSSTRW   =  80000000H;
+    LSLDRW   =  80400000H;
+    LSLDRSW  =  80800000H;
+    LSSTRX   = 0C0000000H;
+    LSLDRX   = 0C0400000H;
+    LSPSTPW  =  29000000H;
+    LSPLDPW  =  29400000H;
+    LSPLDPSW =  69400000H;
+    LSPSTPX  = 0A9000000H;
+    LSPLDPX  = 0A9400000H;
+    LOGAND   =  00000000H;
+    LOGBIC   =  00200000H;
+    LOGORR   =  20000000H;
+    LOGORN   =  20200000H;
+    LOGEOR   =  40000000H;
+    LOGEON   =  40200000H;
+    LOGANDS  =  60000000H;
+    LOGBICS  =  60200000H;
+    BRBR     = 0D61F0000H;
+    BRBLR    = 0D63F0000H;
+    BRRET    = 0D65F0000H;
+    UBRB     =  14000000H;
+    UBRBL    =  94000000H;
+    CONDEQ = 0;
+    CONDNE = 1;
+    CONDCS = 2;
+    CONDCC = 3;
+    CONDMI = 4;
+    CONDPL = 5;
+    CONDVS = 6;
+    CONDVC = 7;
+    CONDHI = 8;
+    CONDLS = 9;
+    CONDGE = 10;
+    CONDLT = 11;
+    CONDGT = 12;
+    CONDLE = 13;
+    CONDAL = 14;
+    CONDNV = 15;
+    CONDHS = 2;
+    CONDLO = 3;
+    BRBcond  =  54000000H;
+    CBRCBZ   =  34000000H;
+    CBRCBNZ  =  35000000H;
+    DP1REV16 =  5AC00400H;
+    DP1REV32 =  5AC00800H;
+    DP1REV64 = 0DAC00C00H;
+    DP2UDIV  =  1AC00800H;
+    DP2SDIV  =  1AC00C00H;
+    DP2LSLV  =  1AC02000H;
+    DP2LSRV  =  1AC02400H;
+    DP2ASRV  =  1AC02800H;
+    DP2RORV  =  1AC02800H;
+    DP3MADD  =  1B000000H;
+    DP3MSUB  =  1B008000H;
+    MWMOVN   =  12800000H;
+    MWMOVZ   =  52800000H;
+    MWMOVK   =  72800000H;
+
+
+
 
     TYPE Item* = RECORD
       mode*: INTEGER;
@@ -105,6 +185,88 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
 
   (*instruction assemblers according to formats*)
 
+  PROCEDURE addsubr( op, rd, rn, rm: INTEGER);
+  BEGIN
+      Put32(code, pc, 1B000000H + (op *20000000H) + (rm * 100H) + (rn *20H) + rd);
+      INC(pc)
+  END addsubr;
+
+  PROCEDURE addsubi( op, rd, rn, imm12: INTEGER);
+  BEGIN
+    IF imm12 < 1000H THEN
+      Put32( code, pc, 11000000H + (op * 20000000H) + (imm12 * 400H) + (rn * 20H) + rd);
+      INC(pc)
+    ELSE
+      OAS.Mark("immediate beyond 12 bits");
+    END
+  END addsubi;
+
+  PROCEDURE ldstr( op, rt, rn, rm: INTEGER);
+  BEGIN
+    Put32(code, pc, op + 38206800H + (rm *10000H) + (rn *20H) + rt);
+    INC(pc)
+  END ldstr;
+
+  PROCEDURE ldsti( op, rt, rn, imm9: INTEGER);
+  BEGIN
+    IF imm9 < -256 THEN
+      OAS.Mark("immediate beyond 9 bits");
+    ELSIF imm9 > 255 THEN
+      OAS.Mark("immediate beyond 9 bits");
+    ELSE
+      Put32(code, pc, 38000000H + op + (imm9 MOD 20H * 1000H) + (rn * 20H) + rt);
+      INC(pc)
+    END
+  END ldsti;
+
+  PROCEDURE ldstpi( op, rt, rt2, rn, imm7: INTEGER);
+  BEGIN
+    IF ( op = LSPSTPX) OR (op = LSPLDPX ) THEN
+      Put32(code, pc, op + ((imm7 DIV 8) *8000H) + (rt2 *400H) + (rn * 20H) + rt);
+    ELSE 
+      Put32(code, pc, op + ((imm7 DIV 4) *8000H) + (rt2 *400H) + (rn * 20H) + rt);
+    END;
+    INC(pc)
+  END ldstpi;
+
+  PROCEDURE logreg( op, rd, rn, rm: INTEGER);
+  BEGIN
+    Put32(code, pc, 80000000H + op + (1 * 8000000H) + (1 * 2000000H) + (rm * 10000H) + (rn * 20H) + rd);
+    INC(pc)
+  END logreg;
+
+  PROCEDURE ubranchr( op, rn: INTEGER);
+  BEGIN
+    Put32(code, pc, op + (rn *20H));
+    INC(pc)
+  END ubranchr;
+
+  PROCEDURE dproc1( op, rd, rn:INTEGER);
+  BEGIN
+    Put32(code, pc, 80000000H + op + (rn *20H) + rd);
+    INC(pc)
+  END dproc1;
+
+  PROCEDURE dproc2( op, rd, rn, rm:INTEGER);
+  BEGIN
+    Put32(code, pc, 80000000H + op + (rm * 10000H) + (rn *20H) + rd);
+    INC(pc)
+  END dproc2;
+
+  PROCEDURE dproc3( op, rd, rn, rm, ra:INTEGER);
+  BEGIN
+    Put32(code, pc, 80000000H + op + (rm * 10000H) + (ra * 400H) + (rn *20H) + rd);
+    INC(pc)
+  END dproc3;
+
+  PROCEDURE movwi( rd, imm: INTEGER);
+  BEGIN
+    
+  END movwi;
+
+
+
+
 (*
   PROCEDURE Put0(op, a, b, c: INTEGER);
     VAR i: INTEGER;
@@ -123,23 +285,29 @@ op + U=2000H
     VAR v: INTEGER; inv: BOOLEAN;
   BEGIN (*emit format-0 instruction*)
     v:= 0BBBBBBBBH; inv := FALSE;
-    IF op = Mov THEN
-     IF op < 2000H THEN
+    IF op = Mov THEN 
       IF (( a # SP ) & ( c # SP )) THEN
         v:=0AA0003E0H + c*10000H + a; 
-(*        v:=0AAH + c*10H + 3 * 10000H + (0E0H+a)*1000000H; *)
       END;
       IF (( a = SP ) & ( c # SP )) THEN
         v:=091H + (1FH+(a*2))*1000000H;
       END;
       IF (( a # SP ) & ( c = SP )) THEN
-        v:=0910003FDH;   (* mov x29, sp = 910003fd *)
+        v:=0910003FDH;   
       END;
-     ELSE (* has U flag *)
+     
+    ELSIF op = 2000H THEN (*mov + U*)
+          (* has U flag *)
           (* V=0: R.A:=H *)
           (* V=1: R.A:=[N,Z,C,V] *)
-     END
-    ELSE  
+      v:= 0BBCCCCCCH ;  
+    ELSIF op = 3000H THEN (*mov + U + V*)
+          (* has U flag *)
+          (* V=0: R.A:=H *)
+          (* V=1: R.A:=[N,Z,C,V] *)
+      v:= 0BBDDDDDDH ;  
+    ELSE 
+      v:= 0BB000000H + op;  
       IF op = Lsl THEN v:= 09AC02000H END; (* negative immediate, positive is lsr *)
       IF op = Asr THEN v:= 09AC02800H END; 
       IF op = Ror THEN v:= 09AC02C00H END; 
@@ -244,12 +412,13 @@ op + U=2000H
           v:= 091000000H; v:=v + (im*400H) + (b*20H) + a
         END;
         IF op = Sub THEN (* u=1: with carry *)
-          v:= 0F1000000H; v:=v + (im*400H) + (b*20H) + a
+          IF a # 1FH THEN v:= 0F1000000H ELSE v:=0D1000000H END; 
+          v:=v + (im*400H) + (b*20H) + a
         END;
         IF op = Mul THEN (* u=1: unsigned *)
           v:= 99999999H; v:=v + (im*400H) + (b*20H) + a
         END;
-        IF op = Div THEN v:= 0AAAAAAAAH END;
+        IF op = Div THEN v:= 09AC00C00H  + (im*10000H) + (b*20H) + a END;
           (*  v:=v + (im*400H) + (b*20H) + a; *)
       END
     END;
@@ -435,6 +604,15 @@ v overflow
       Put32(code, pc,0F9400000H + a*20H + a); INC(pc);
     END
   END APut4;
+
+
+  PROCEDURE APut5(op, a, b, c, d: INTEGER);
+  BEGIN (*emit special instruction*)
+    IF op = Msub THEN 
+      Put32(code, pc, 9B008000H + c*10000H + d*400H + b*20H + a); INC(pc)
+    END;
+  END APut5;
+
 
   PROCEDURE Pad4*;
   BEGIN
@@ -872,7 +1050,10 @@ v overflow
       ELSIF (y.mode = OAB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x);
         IF e <= 16 THEN APut1(And, x.r, x.r, y.a-1) ELSE APut1(Lsl, x.r, x.r, 32-e); APut1(Ror, x.r, x.r, 32-e) END
       ELSIF y.mode = OAB.Const THEN
-        IF y.a > 0 THEN load(x); APut1a(Div, x.r, x.r, y.a); APut0(Mov+U, x.r, 0, 0) ELSE OAS.Mark("bad modulus") END
+        IF y.a > 0 THEN load(x); load(y);
+           APut1a(Div,      RH, x.r, RH-1);
+           APut5(Msub, RH-1, RH, RH-1, x.r); DEC(RH)
+        ELSE OAS.Mark("bad modulus") END
       ELSE load(y);
         IF check THEN Trap(LE, 6) END ;
         load(x); APut0(Div, RH-2, x.r, y.r); APut0(Mov+U, RH-2, 0, 0); DEC(RH); x.r := RH-1
