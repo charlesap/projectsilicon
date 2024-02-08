@@ -20,60 +20,61 @@ echo "in interim"
 #/usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" tmp.entitlements
 #/usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-executable-page-protection bool true" tmp.entitlements
 
-../obnc/oac -s Kernel.Mod
-../obnc/oac -s FileDir.Mod
-../obnc/oac -s Files.Mod
-../obnc/oac -s Modules.Mod
+# runtime for -mso
+#../obnc/oac -s Kernel.Mod
+#../obnc/oac -s FileDir.Mod
+#../obnc/oac -s Files.Mod
+#../obnc/oac -s Modules.Mod
 
 ../obnc/oac -ms E.Mod
 codesign -s - E.bin
-#objdump -l -j __k000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-#objdump -l -j __d000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-#objdump -d -j __c000 E.bin | grep '\.\.\.\|^10'
+objdump -l -j __k000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+objdump -l -j __d000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+objdump -d -j __c000 E.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms F.Mod
-codesign -s - F.bin
+#../obnc/oac -ms F.Mod
+#codesign -s - F.bin
 #objdump -l -j __k000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 F.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms G.Mod
-codesign -s - G.bin
+#../obnc/oac -ms G.Mod
+#codesign -s - G.bin
 #objdump -l -j __k000 G.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 G.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 G.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms H.Mod
-codesign -s - H.bin
+#../obnc/oac -ms H.Mod
+#codesign -s - H.bin
 #objdump -l -j __k000 H.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 H.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 H.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms I.Mod
-codesign -s - I.bin
+#../obnc/oac -ms I.Mod
+#codesign -s - I.bin
 #objdump -l -j __k000 I.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 I.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 I.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -mso J.Mod
-codesign -s - J.bin
+#../obnc/oac -mso J.Mod
+#codesign -s - J.bin
 #objdump -l -j __k000 J.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 J.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 J.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms K.Mod
+#../obnc/oac -ms K.Mod
 #codesign -s - --entitlements tmp.entitlements K.bin
-codesign -s - K.bin
-objdump -l -j __k000 K.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-objdump -l -j __d000 K.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-objdump -d -j __c000 K.bin | grep '\.\.\.\|^10'
+#codesign -s - K.bin
+#objdump -l -j __k000 K.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+#objdump -l -j __d000 K.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+#objdump -d -j __c000 K.bin | grep '\.\.\.\|^10'
 
 
-../obnc/oac -s V.Mod
+#../obnc/oac -s V.Mod
 #codesign -s - V.bin
 #objdump -d -j __c000 V.bin
 
-../obnc/oac -s R.Mod
+#../obnc/oac -s R.Mod
 #codesign -s - R.bin
 #objdump -d -j __c000 R.bin
 
