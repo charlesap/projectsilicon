@@ -28,21 +28,21 @@ echo "in interim"
 
 ../obnc/oac -ms E.Mod
 codesign -s - E.bin
-objdump -l -j __k000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-objdump -l -j __d000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-objdump -d -j __c000 E.bin | grep '\.\.\.\|^10'
+#objdump -l -j __k000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+#objdump -l -j __d000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+#objdump -d -j __c000 E.bin | grep '\.\.\.\|^10'
 
 ../obnc/oac -ms F.Mod
 codesign -s - F.bin
-objdump -l -j __k000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-objdump -l -j __d000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-objdump -d -j __c000 F.bin | grep '\.\.\.\|^10'
+#objdump -l -j __k000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+#objdump -l -j __d000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+#objdump -d -j __c000 F.bin | grep '\.\.\.\|^10'
 
-#../obnc/oac -ms G.Mod
-#codesign -s - G.bin
-#objdump -l -j __k000 G.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-#objdump -l -j __d000 G.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-#objdump -d -j __c000 G.bin | grep '\.\.\.\|^10'
+../obnc/oac -ms G.Mod
+codesign -s - G.bin
+objdump -l -j __k000 G.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+objdump -l -j __d000 G.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+objdump -d -j __c000 G.bin | grep '\.\.\.\|^10'
 
 #../obnc/oac -ms H.Mod
 #codesign -s - H.bin

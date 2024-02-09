@@ -1,9 +1,9 @@
 MODULE G;
 IMPORT F;
 
-PROCEDURE P*(i:INTEGER);
+PROCEDURE P*(i,j,k,l:INTEGER);
 BEGIN
-  F.Q(i)
+  F.Q(i,j,k,l)
 END P;
 
 PROCEDURE X;
@@ -21,6 +21,6 @@ BEGIN
 END Q;
 
 BEGIN
-  Q(3); P(4); X   
+  Q(3); P(4,5,6,7); X   
 END G.
 
