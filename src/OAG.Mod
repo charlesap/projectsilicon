@@ -60,6 +60,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     LOGBICS  =  60200000H;
     BRBR     = 0D61F0000H;
     BRBLR    = 0D63F0000H;
+    BRBLO    =  94000000H;
     BRRET    = 0D65F0000H;
     UBRB     =  14000000H;
     UBRBL    =  94000000H;
@@ -232,11 +233,22 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     INC(pc)
   END ldstpi;
 
+  PROCEDURE movspto( rd: INTEGER);
+  BEGIN
+     (*   v:=0910003FDH;  *) 
+    Put32(code, pc, 91000000H  + 3E0H + rd);
+    INC(pc)
+  END movspto;
+
   PROCEDURE logreg( op, rd, rn, rm: INTEGER);
   BEGIN
     Put32(code, pc, 80000000H + op + (1 * 8000000H) + (1 * 2000000H) + (rm * 10000H) + (rn * 20H) + rd);
     INC(pc)
   END logreg;
+
+  PROCEDURE brancho( op, imm: INTEGER);
+  BEGIN Put32(code, pc, op + (imm MOD 4000000H + 1)); INC(pc) 
+  END brancho;
 
   PROCEDURE ubranchr( op, rn: INTEGER);
   BEGIN Put32(code, pc, op + (rn *20H)); INC(pc)
@@ -1340,7 +1352,7 @@ v overflow
   PROCEDURE Call*(VAR x: Item; r: INTEGER);
   BEGIN (*x.type.form = OAB.Proc*)
     IF x.mode = OAB.Const THEN
-      IF x.r >= 0 THEN APut3(BL, 7, (x.a DIV 4) - pc - 1)
+      IF x.r >= 0 THEN brancho( BRBLO, (x.a DIV 4) - pc - 1)
       ELSE (*imported*)
         IF pc - fixorgP < 1000H THEN
           Put32(code, pc, (-x.r)*100000H + (x.a)*1000H + (pc-fixorgP) );
@@ -1371,7 +1383,7 @@ v overflow
       a:=locblksize MOD 16;
       IF a # 0 THEN INC(locblksize,16-a) END;
       a := 8; r := 0;
-      ldstpi( LSPSTPX, FP, FP+1, SP, -16 - locblksize, LSPIPRE ); APut0(Mov, FP, 0, SP);
+      ldstpi( LSPSTPX, FP, FP+1, SP, -16 - locblksize, LSPIPRE ); movspto(FP); 
       WHILE a < parblksize DO ldsti( LSSTRX, r, SP, a+8 ); INC(r); INC(a, 8) END
     ELSE (*interrupt procedure*)
       APut1(Sub, SP, SP, locblksize); APut2(Stp, 0, SP, 0); APut2(Stp, 2, SP, 16)
@@ -1626,7 +1638,7 @@ v overflow
   PROCEDURE Header*;
   BEGIN entry := pc*4;
     IF version = 0 THEN Put32(code, 0, 0E7000000H-1 + pc); APut1a(Mov, SP, 0, StkOrg0)  (*RISC-0*)
-    ELSE ldstpi( LSPSTPX, FP, FP+1, SP, -16, LSPIPRE ); APut0(Mov, FP, 0, SP)
+    ELSE ldstpi( LSPSTPX, FP, FP+1, SP, -16, LSPIPRE ); movspto(FP)
     END
   END Header;
 
