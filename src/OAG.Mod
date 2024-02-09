@@ -240,6 +240,47 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     INC(pc)
   END movspto;
 
+  PROCEDURE movwi(rd, imm:INTEGER);
+    VAR count0000, countffff, block, op, skippattern, imm16, i:INTEGER;
+        invert: BOOLEAN;
+  BEGIN
+(*   Emit a MOVZ or MOVN followed by a sequence of MOVKs to generate the 64-bit constant in imm.
+     See whether the 0x0000 or 0xffff pattern is more common in the immediate.  This ensures we
+     produce the fewest number of immediates. *) 
+    count0000 := 0; countffff := 0; i := 0;
+    WHILE i < 4 DO
+        block := imm DIV (i*10000H) MOD 10000H;
+        IF block = 0FFFFH THEN INC(countffff)
+        ELSIF block = 0 THEN INC(count0000)
+        END;
+        INC(i)
+    END;
+(*   Iterate over 16-bit elements of imm, outputting an appropriate move instruction.  *)
+    invert := count0000 < countffff;
+    IF invert THEN op := MWMOVN ELSE op := MWMOVZ END;
+    IF invert THEN skippattern := 0FFFFH ELSE skippattern := 0 END;
+    i := 0; WHILE i <  4 DO INC(i);
+        imm16 := imm DIV (i*10000H) MOD 10000H;
+        IF imm16 # skippattern THEN
+            IF invert THEN
+                imm16 := 0 - (imm16+1);   (* invert *)
+                imm16 := imm16 MOD 10000H;
+            END;
+            Put32(code, pc, op (* 80000000H + op + 1 * 8000000H + (i * 200000H) + (imm16 * 20H) +  rd *));
+            INC(pc);
+            op := MWMOVK;
+            invert := FALSE;
+        END;
+        INC(i)
+    END;
+(*   Tidy up for the case imm = 0 or imm == -1.  *)
+    IF op # MWMOVK THEN
+        Put32(code, pc, 80000000H + op + (*1 * 8000000H) + (i * 200000H) + *) (imm * 20H) + rd);
+        INC(pc)
+    END
+  END movwi;
+
+
   PROCEDURE logreg( op, rd, rn, rm: INTEGER);
   BEGIN
     Put32(code, pc, 80000000H + op + (1 * 8000000H) + (1 * 2000000H) + (rm * 10000H) + (rn * 20H) + rd);
@@ -272,10 +313,6 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     INC(pc)
   END dproc3;
 
-  PROCEDURE movwi( rd, imm: INTEGER);
-  BEGIN
-    
-  END movwi;
 
 
 
@@ -743,10 +780,7 @@ v overflow
           ELSIF x.r = 0 THEN APut3(BL, 7, 0); APut1a(Sub, RH, LNK, pc*4 - x.a)
           ELSE GetSB(x.r); APut1(Add, RH, RH, x.a + 100H) (*mark as progbase-relative*)
           END
-        ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN APut1(Mov, RH, 0, x.a)
-        ELSE APut1a(Mov, RH, 0, x.a)
-          (* APut1(Mov+U, RH, 0, x.a DIV 10000H MOD 10000H);
-          IF x.a MOD 10000H # 0 THEN APut1(Ior, RH, RH, x.a MOD 10000H) END *)
+        ELSE  movwi(RH, x.a)
         END ;
         x.r := RH; incR
       ELSIF x.mode = OAB.Var THEN
@@ -758,8 +792,8 @@ v overflow
       ELSIF x.mode = RegI THEN APut2(op, x.r, x.r, x.a)
       ELSIF x.mode = Cond THEN
         APut3(BC, negated(x.r), 2);
-        FixLink(x.b); APut1(Mov, RH, 0, 1); APut3(BC, 7, 1);
-        FixLink(x.a); APut1(Mov, RH, 0, 0); x.r := RH; incR
+        FixLink(x.b); movwi(RH, 1); APut3(BC, 7, 1);
+        FixLink(x.a); movwi(RH, 0); x.r := RH; incR
       END ;
       x.mode := Reg
     END
@@ -994,11 +1028,11 @@ v overflow
   BEGIN
     IF x.type.form = OAB.Int THEN
       IF x.mode = OAB.Const THEN x.a := -x.a
-      ELSE load(x); APut1(Mov, RH, 0, 0); APut0(Sub, x.r, RH, x.r)
+      ELSE load(x); movwi(RH, 0); APut0(Sub, x.r, RH, x.r)
       END
     ELSIF x.type.form = OAB.Real THEN
       IF x.mode = OAB.Const THEN x.a := x.a + 7FFFFFFFH + 1
-      ELSE load(x); APut1(Mov, RH, 0, 0); APut0(Fsb, x.r, RH, x.r)
+      ELSE load(x); movwi(RH, 0); APut0(Fsb, x.r, RH, x.r)
       END
     ELSE (*form = Set*)
       IF x.mode = OAB.Const THEN x.a := -x.a-1 
@@ -1089,7 +1123,7 @@ v overflow
   PROCEDURE Singleton*(VAR x: Item);  (* x := {x} *)
   BEGIN
     IF x.mode = OAB.Const THEN x.a := LSL(1, x.a) 
-    ELSE load(x); APut1(Mov, RH, 0, 1); APut0(Lsl, x.r, RH,  x.r)
+    ELSE load(x); movwi(RH, 1); APut0(Lsl, x.r, RH,  x.r)
     END
   END Singleton;
 
@@ -1099,10 +1133,10 @@ v overflow
       IF x.a <= y.a THEN x.a := LSL(2, y.a) - LSL(1, x.a) ELSE x.a := 0 END
     ELSE
       IF (x.mode = OAB.Const) & (x.a <= 16) THEN x.a := LSL(-1, x.a)
-      ELSE load(x); APut1(Mov, RH, 0, -1); APut0(Lsl, x.r, RH, x.r)
+      ELSE load(x); movwi(RH, -1); APut0(Lsl, x.r, RH, x.r)
       END ;
-      IF (y.mode = OAB.Const) & (y.a < 16) THEN APut1(Mov, RH, 0, LSL(-2, y.a)); y.mode := Reg; y.r := RH; incR
-      ELSE load(y); APut1(Mov, RH, 0, -2); APut0(Lsl, y.r, RH, y.r)
+      IF (y.mode = OAB.Const) & (y.a < 16) THEN movwi(RH, LSL(-2, y.a)); y.mode := Reg; y.r := RH; incR
+      ELSE load(y); movwi(RH, -2); APut0(Lsl, y.r, RH, y.r)
       END ;
       IF x.mode = OAB.Const THEN
         IF x.a # 0 THEN APut1(Xor, y.r, y.r, -1); APut1a(And, RH-1, y.r, x.a) END ;
@@ -1211,7 +1245,7 @@ v overflow
       loadAdr(x); loadAdr(y);
       IF (x.type.form = OAB.Array) &  (x.type.len > 0) THEN
         IF y.type.len >= 0 THEN 
-          IF x.type.size = y.type.size THEN APut1a(Mov, RH, 0, (y.type.size+3) DIV 4)
+          IF x.type.size = y.type.size THEN movwi(RH, (y.type.size+3) DIV 4)
           ELSE OAS.Mark("different length/size, not implemented")
           END
         ELSE (*y  open array*) APut2(Ldr, RH, SP, y.a+4); s := y.type.base.size;  (*element size*)
@@ -1224,7 +1258,7 @@ v overflow
           END ;
           fix(pc0, pc + 5 - pc0)
         END
-      ELSIF x.type.form = OAB.Record THEN APut1a(Mov, RH, 0, x.type.size DIV 4)
+      ELSIF x.type.form = OAB.Record THEN movwi(RH, x.type.size DIV 4)
       ELSE OAS.Mark("inadmissible assignment")
       END ;
       APut2(Ldr, RH+1, y.r, 0); APut1(Add, y.r, y.r, 4);
@@ -1252,7 +1286,7 @@ v overflow
   
   PROCEDURE OpenArrayParam*(VAR x: Item);
   BEGIN loadAdr(x);
-    IF x.type.len >= 0 THEN APut1a(Mov, RH, 0, x.type.len) ELSE APut2(Ldr, RH, SP, x.a+4+frame) END ;
+    IF x.type.len >= 0 THEN movwi(RH, x.type.len) ELSE APut2(Ldr, RH, SP, x.a+4+frame) END ;
     incR
   END OpenArrayParam;
 
@@ -1260,7 +1294,7 @@ v overflow
     VAR xmd: INTEGER;
   BEGIN xmd := x.mode; loadAdr(x);
     IF (ftype.form = OAB.Array) & (ftype.len < 0) THEN (*open array*)
-      IF x.type.len >= 0 THEN APut1a(Mov, RH, 0, x.type.len) ELSE  APut2(Ldr, RH, SP, x.a+4+frame) END ;
+      IF x.type.len >= 0 THEN movwi(RH, x.type.len) ELSE  APut2(Ldr, RH, SP, x.a+4+frame) END ;
       incR
     ELSIF ftype.form = OAB.Record THEN
       IF xmd = OAB.Par THEN APut2(Ldr, RH, SP, x.a+4+frame); incR ELSE loadTypTagAdr(x.type) END
@@ -1272,7 +1306,7 @@ v overflow
   END ValueParam;
 
   PROCEDURE StringParam*(VAR x: Item);
-  BEGIN loadStringAdr(x); APut1(Mov, RH, 0, x.b); incR  (*len*)
+  BEGIN loadStringAdr(x); movwi(RH, x.b); incR  (*len*)
   END StringParam;
 
   (*For Statements*)
@@ -1430,7 +1464,7 @@ v overflow
   BEGIN loadAdr(x); zr := RH; APut2(Ldr, RH, x.r, 0); incR;
     IF inorex = 0 THEN op := Ior ELSE op := Ann END ;
     IF y.mode = OAB.Const THEN APut1a(op, zr, zr, LSL(1, y.a))
-    ELSE load(y); APut1(Mov, RH, 0, 1); APut0(Lsl, y.r, RH, y.r); APut0(op, zr, zr, y.r); DEC(RH)
+    ELSE load(y); movwi(RH, 1); APut0(Lsl, y.r, RH, y.r); APut0(op, zr, zr, y.r); DEC(RH)
     END ;
     APut2(Str, zr, x.r, 0); DEC(RH, 2)
   END Include;
@@ -1463,7 +1497,7 @@ v overflow
   END Unpk;
 
   PROCEDURE Led*(VAR x: Item);
-  BEGIN load(x); APut1(Mov, RH, 0, -60); APut2(Str, x.r, RH, 0); DEC(RH)
+  BEGIN load(x); movwi(RH, -60); APut2(Str, x.r, RH, 0); DEC(RH)
   END Led;
 
   PROCEDURE Get*(VAR x, y: Item);
@@ -1531,7 +1565,7 @@ v overflow
     IF x.mode = OAB.Const THEN x.a := ABS(x.a)
     ELSE load(x);
       IF x.type.form = OAB.Real THEN APut1(Lsl, x.r, x.r, 1); APut1(Ror, x.r, x.r, 1)
-      ELSE APut1(Cmp, x.r, x.r, 0); APut3(BC, GE, 2); APut1(Mov, RH, 0, 0); APut0(Sub, x.r, RH, x.r)
+      ELSE APut1(Cmp, x.r, x.r, 0); APut3(BC, GE, 2); movwi(RH, 0); APut0(Sub, x.r, RH, x.r)
       END
     END
   END Abs;
