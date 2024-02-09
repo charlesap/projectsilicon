@@ -32,11 +32,11 @@ objdump -l -j __k000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 objdump -l -j __d000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 objdump -d -j __c000 E.bin | grep '\.\.\.\|^10'
 
-#../obnc/oac -ms F.Mod
-#codesign -s - F.bin
-#objdump -l -j __k000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-#objdump -l -j __d000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
-#objdump -d -j __c000 F.bin | grep '\.\.\.\|^10'
+../obnc/oac -ms F.Mod
+codesign -s - F.bin
+objdump -l -j __k000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+objdump -l -j __d000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
+objdump -d -j __c000 F.bin | grep '\.\.\.\|^10'
 
 #../obnc/oac -ms G.Mod
 #codesign -s - G.bin

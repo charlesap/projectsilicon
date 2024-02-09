@@ -46,7 +46,10 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     LSPLDPW  =  29400000H;
     LSPLDPSW =  69400000H;
     LSPSTPX  = 0A9000000H;
-    LSPLDPX  = 0A9400000H;
+(*  LSPLDPX  = 0A9400000H; *)
+    LSPLDPX  = 0A8C00000H;
+    LSPIPRE  =  00800000H;
+    LSPIPOST =         0H;
     LOGAND   =  00000000H;
     LOGBIC   =  00200000H;
     LOGORR   =  20000000H;
@@ -214,17 +217,17 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     ELSIF imm9 > 255 THEN
       OAS.Mark("immediate beyond 9 bits");
     ELSE
-      Put32(code, pc, 38000000H + op + (imm9 MOD 20H * 1000H) + (rn * 20H) + rt);
+      Put32(code, pc, 38000000H + op + (imm9 MOD 200H * 1000H) + (rn * 20H) + rt);
       INC(pc)
     END
   END ldsti;
 
-  PROCEDURE ldstpi( op, rt, rt2, rn, imm7: INTEGER);
+  PROCEDURE ldstpi( op, rt, rt2, rn, imm7, pre: INTEGER);
   BEGIN
     IF ( op = LSPSTPX) OR (op = LSPLDPX ) THEN
-      Put32(code, pc, op + ((imm7 DIV 8) *8000H) + (rt2 *400H) + (rn * 20H) + rt);
+      Put32(code, pc, op + pre + ((imm7 DIV 8 MOD 80H) *8000H) + (rt2 *400H) + (rn * 20H) + rt);
     ELSE 
-      Put32(code, pc, op + ((imm7 DIV 4) *8000H) + (rt2 *400H) + (rn * 20H) + rt);
+      Put32(code, pc, op + pre + ((imm7 DIV 4 MOD 80H) *8000H) + (rt2 *400H) + (rn * 20H) + rt);
     END;
     INC(pc)
   END ldstpi;
@@ -236,9 +239,7 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
   END logreg;
 
   PROCEDURE ubranchr( op, rn: INTEGER);
-  BEGIN
-    Put32(code, pc, op + (rn *20H));
-    INC(pc)
+  BEGIN Put32(code, pc, op + (rn *20H)); INC(pc)
   END ubranchr;
 
   PROCEDURE dproc1( op, rd, rn:INTEGER);
@@ -475,8 +476,6 @@ op + U=2000H
     VAR v: INTEGER;
   BEGIN (*emit load/store instruction*)
     v := 077777777H;
-    IF op = Stp THEN v:= 0A9BF7BFDH END; (* x29, x30, [sp, #-16]! *)
-    IF op = Ldp THEN v:= 0A8C17BFDH END; (* x29, x30, [sp], #16   *)
     IF op = Str THEN
       IF off < 0 THEN
         v:= 0F81F8000H + (off DIV 8 * 400H) + (b*20H) + a;
@@ -1372,8 +1371,8 @@ v overflow
       a:=locblksize MOD 16;
       IF a # 0 THEN INC(locblksize,16-a) END;
       a := 8; r := 0;
-      APut2(Stp, FP, SP, -16 - locblksize); APut0(Mov, FP, 0, SP); APut1(Sub, SP, SP, locblksize);
-      WHILE a < parblksize DO APut2(Str, r, SP, a); INC(r); INC(a, 8) END
+      ldstpi( LSPSTPX, FP, FP+1, SP, -16 - locblksize, LSPIPRE ); APut0(Mov, FP, 0, SP);
+      WHILE a < parblksize DO ldsti( LSSTRX, r, SP, a+8 ); INC(r); INC(a, 8) END
     ELSE (*interrupt procedure*)
       APut1(Sub, SP, SP, locblksize); APut2(Stp, 0, SP, 0); APut2(Stp, 2, SP, 16)
       (*R0, R1, R2, R3 saved on stack*)
@@ -1387,9 +1386,8 @@ v overflow
     a:=size MOD 16;
     IF a # 0 THEN INC(size,16-a) END;
     IF ~int THEN (*procedure epilog*) 
-      APut1(Add, SP, SP, size);
-      APut2(Ldp, FP, SP, 16 + size);
-      APut3(BR, 7, LNK)
+      ldstpi( LSPLDPX, FP, FP+1, SP, 16 + size, LSPIPOST );
+      ubranchr( BRRET, LNK);
     ELSE (*interrupt return, restore R2, R1, R0*)
       APut2(Ldr, 2, SP, 8); APut2(Ldr, 1, SP, 4); APut2(Ldr, 0, SP, 0); APut1(Add, SP, SP, size);
       APut3(BR, 7, NTR) (*RTI*)
@@ -1627,8 +1625,8 @@ v overflow
 
   PROCEDURE Header*;
   BEGIN entry := pc*4;
-    IF version = 0 THEN Put32(code, 0, 0E7000000H-1 + pc);  APut1a(Mov, SP, 0, StkOrg0)  (*RISC-0*)
-    ELSE APut2(Stp, FP, SP, 0); APut0(Mov, FP, 0, SP)
+    IF version = 0 THEN Put32(code, 0, 0E7000000H-1 + pc); APut1a(Mov, SP, 0, StkOrg0)  (*RISC-0*)
+    ELSE ldstpi( LSPSTPX, FP, FP+1, SP, -16, LSPIPRE ); APut0(Mov, FP, 0, SP)
     END
   END Header;
 
@@ -1668,7 +1666,7 @@ v overflow
   BEGIN  (*exit code*)
     IF verbose THEN EmitLn; Emit("Writing object file"); EmitLn; END;
     IF version = 0 THEN APut1(Mov, 0, 0, 0); APut3(BR, 7, 0)  (*RISC-0*)
-    ELSE APut2(Ldp, FP, SP, 16); APut3(BR, 7, LNK) (* Ldp = FP + LNK *)
+    ELSE ldstpi( LSPLDPX, FP, FP+1, SP, 16, LSPIPOST ); APut3(BR, 7, LNK) (* Ldp = FP + LNK *)
     END ;
     IF pc MOD 2 # 0 THEN INC( pc ) END;
     obj := OAB.topScope.next; nofimps := 0; comsize := 8; nofptrs := 0;
