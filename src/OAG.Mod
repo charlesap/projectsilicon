@@ -211,16 +211,19 @@ MODULE OAG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019, CP 2023  Oberon compil
     INC(pc)
   END ldstr;
 
-  PROCEDURE ldsti( op, rt, rn, imm9: INTEGER);
-  BEGIN
+  PROCEDURE ldsti( op, rt, rn, imm: INTEGER);
+    VAR imm9: INTEGER;
+  BEGIN imm9 := imm;
+(*
     IF imm9 < -256 THEN
       OAS.Mark("immediate beyond 9 bits");
     ELSIF imm9 > 255 THEN
       OAS.Mark("immediate beyond 9 bits");
     ELSE
+*)
       Put32(code, pc, 38000000H + op + (imm9 MOD 200H * 1000H) + (rn * 20H) + rt);
       INC(pc)
-    END
+(*    END *)
   END ldsti;
 
   PROCEDURE ldstpi( op, rt, rt2, rn, imm7, pre: INTEGER);
@@ -770,9 +773,9 @@ v overflow
   END NilCheck;
 
   PROCEDURE load(VAR x: Item);
-    VAR op: INTEGER;
+    VAR op, OP: INTEGER;
   BEGIN
-    IF x.type.size = 1 THEN op := Ldr+1 ELSE op := Ldr END ;
+    IF x.type.size = 1 THEN op := Ldr+1; OP := LSLDRSBX ELSE op := Ldr; OP := LSLDRX END ;
     IF x.mode # Reg THEN
       IF x.mode = OAB.Const THEN
         IF x.type.form = OAB.Proc THEN
@@ -784,11 +787,11 @@ v overflow
         END ;
         x.r := RH; incR
       ELSIF x.mode = OAB.Var THEN
-        IF x.r > 0 THEN (*local*) APut2(op, RH, SP, x.a + 16 + frame)
+        IF x.r > 0 THEN (*local*) (* APut2(op, RH, SP, x.a + frame);*) ldsti( OP, RH, SP, (x.a + frame) ) 
         ELSE GetSB(x.r); APut2(op, RH, RH, x.a) 
         END ;
         x.r := RH; incR
-      ELSIF x.mode = OAB.Par THEN APut2(Ldr, RH, SP, x.a + 16 + frame); APut2(op, RH, RH, x.b); x.r := RH; incR
+      ELSIF x.mode = OAB.Par THEN APut2(Ldr, RH, SP, x.a + frame); APut2(op, RH, RH, x.b); x.r := RH; incR
       ELSIF x.mode = RegI THEN APut2(op, x.r, x.r, x.a)
       ELSIF x.mode = Cond THEN
         APut3(BC, negated(x.r), 2);
@@ -802,11 +805,11 @@ v overflow
   PROCEDURE loadAdr(VAR x: Item);
   BEGIN
     IF x.mode = OAB.Var THEN
-      IF x.r > 0 THEN (*local*) APut1a(Add, RH, SP, x.a + 16 + frame)
+      IF x.r > 0 THEN (*local*) APut1a(Add, RH, SP, x.a + frame)
       ELSE GetSB(x.r); APut1a(Add, RH, RH, x.a)
       END ;
       x.r := RH; incR
-    ELSIF x.mode = OAB.Par THEN APut2(Ldr, RH, SP, x.a + 16 + frame);
+    ELSIF x.mode = OAB.Par THEN APut2(Ldr, RH, SP, x.a + frame);
       IF x.b # 0 THEN APut1a(Add, RH, RH, x.b) END ; 
       x.r := RH; incR
     ELSIF x.mode = RegI THEN
@@ -892,7 +895,7 @@ v overflow
       IF check THEN  (*check array bounds*)
         IF lim >= 0 THEN APut1a(Cmp, RH, y.r, lim)
         ELSE (*open array*)
-          IF x.mode IN {OAB.Var, OAB.Par} THEN APut2(Ldr, RH, SP, x.a+4+ 16 + frame); APut0(Cmp, RH, y.r, RH)
+          IF x.mode IN {OAB.Var, OAB.Par} THEN APut2(Ldr, RH, SP, x.a+4+ frame); APut0(Cmp, RH, y.r, RH)
           ELSE OAS.Mark("error in Index")
           END
         END ;
@@ -908,7 +911,7 @@ v overflow
         END ;
         x.r := y.r; x.mode := RegI
       ELSIF x.mode = OAB.Par THEN
-        APut2(Ldr, RH, SP, x.a + 16 + frame);
+        APut2(Ldr, RH, SP, x.a + frame);
         APut0(Add, y.r, RH, y.r); x.mode := RegI; x.r := y.r; x.a := x.b
       ELSIF x.mode = RegI THEN APut0(Add, x.r, x.r, y.r); DEC(RH)
       END
@@ -918,10 +921,10 @@ v overflow
   PROCEDURE DeRef*(VAR x: Item);
   BEGIN
     IF x.mode = OAB.Var THEN
-      IF x.r > 0 THEN (*local*) APut2(Ldr, RH, SP, x.a + 16 + frame) ELSE GetSB(x.r); APut2(Ldr, RH, RH, x.a) END ;
+      IF x.r > 0 THEN (*local*) APut2(Ldr, RH, SP, x.a + frame) ELSE GetSB(x.r); APut2(Ldr, RH, RH, x.a) END ;
       NilCheck; x.r := RH; incR
     ELSIF x.mode = OAB.Par THEN
-      APut2(Ldr, RH, SP, x.a + 16 + frame); APut2(Ldr, RH, RH, x.b); NilCheck; x.r := RH; incR
+      APut2(Ldr, RH, SP, x.a + frame); APut2(Ldr, RH, RH, x.b); NilCheck; x.r := RH; incR
     ELSIF x.mode = RegI THEN APut2(Ldr, x.r, x.r, x.a); NilCheck
     ELSIF x.mode # Reg THEN OAS.Mark("bad mode in DeRef")
     END ;
@@ -972,7 +975,7 @@ v overflow
       IF x.mode >= Reg THEN DEC(RH) END ;
       SetCC(x, 7)
     ELSE (*fetch tag into RH*)
-      IF varpar THEN APut2(Ldr, RH, SP, x.a+4+ 16 + frame)
+      IF varpar THEN APut2(Ldr, RH, SP, x.a+4+ frame)
       ELSE load(x);
         pc0 := pc; APut3(BC, EQ, 0);  (*NIL belongs to every pointer type*)
         APut2(Ldr, RH, x.r, -8)
@@ -1224,15 +1227,15 @@ v overflow
   END StrToChar;
 
   PROCEDURE Store*(VAR x, y: Item); (* x := y *)
-    VAR op: INTEGER;
+    VAR op, OP: INTEGER;
   BEGIN  load(y);
-    IF x.type.size = 1 THEN op := Str+1 ELSE op := Str END ;
+    IF x.type.size = 1 THEN op := Str+1; OP := LSSTRB ELSE op := Str; OP := LSSTRX END ;
     IF x.mode = OAB.Var THEN
-      IF x.r > 0 THEN (*local*) APut2(op, y.r, SP, x.a + 16 + frame)
-      ELSE GetSB(x.r); APut2(op, y.r, RH, x.a)
+      IF x.r > 0 THEN (*local*) (*APut2(op, y.r, SP, x.a + frame);*) ldsti( OP, y.r, SP, (x.a + frame) )
+      ELSE GetSB(x.r); (*APut2(op, y.r, RH, x.a);*) ldsti( OP, y.r, RH, x.a  )
       END
-    ELSIF x.mode = OAB.Par THEN APut2(Ldr, RH, SP, x.a + 16 + frame); APut2(op, y.r, RH, x.b);
-    ELSIF x.mode = RegI THEN APut2(op, y.r, x.r, x.a); DEC(RH);
+    ELSIF x.mode = OAB.Par THEN (*APut2(Ldr, RH, SP, x.a + frame);*) ldsti( LSLDRX, RH, SP, x.a + frame ); (*APut2(op, y.r, RH, x.b);*) ldsti( OP, y.r, RH, x.b + frame )
+    ELSIF x.mode = RegI THEN (*APut2(op, y.r, x.r, x.a);*)ldsti( OP, y.r, x.r, x.a ); DEC(RH);
     ELSE OAS.Mark("bad mode in Store")
     END ;
     DEC(RH)
@@ -1286,7 +1289,7 @@ v overflow
   
   PROCEDURE OpenArrayParam*(VAR x: Item);
   BEGIN loadAdr(x);
-    IF x.type.len >= 0 THEN movwi(RH, x.type.len) ELSE APut2(Ldr, RH, SP, x.a+4+ 16 + frame) END ;
+    IF x.type.len >= 0 THEN movwi(RH, x.type.len) ELSE APut2(Ldr, RH, SP, x.a+4+ frame) END ;
     incR
   END OpenArrayParam;
 
@@ -1294,10 +1297,10 @@ v overflow
     VAR xmd: INTEGER;
   BEGIN xmd := x.mode; loadAdr(x);
     IF (ftype.form = OAB.Array) & (ftype.len < 0) THEN (*open array*)
-      IF x.type.len >= 0 THEN movwi(RH, x.type.len) ELSE  APut2(Ldr, RH, SP, x.a+4+ 16 + frame) END ;
+      IF x.type.len >= 0 THEN movwi(RH, x.type.len) ELSE  APut2(Ldr, RH, SP, x.a+4+ frame) END ;
       incR
     ELSIF ftype.form = OAB.Record THEN
-      IF xmd = OAB.Par THEN APut2(Ldr, RH, SP, x.a+4+ 16 + frame); incR ELSE loadTypTagAdr(x.type) END
+      IF xmd = OAB.Par THEN APut2(Ldr, RH, SP, x.a+4+ frame); incR ELSE loadTypTagAdr(x.type) END
     END
   END VarParam;
 
@@ -1365,15 +1368,15 @@ v overflow
   PROCEDURE SaveRegs(r: INTEGER);  (* R[0 .. r-1]*)
     VAR r0: INTEGER;
   BEGIN (*r > 0*) r0 := 0;
-    APut1(Sub, SP, SP, r*4); INC(frame, 4*r); (*was 4*)
-    REPEAT APut2(Str, r0, SP, (r-r0-1)*4); INC(r0) UNTIL r0 = r (*was 4*)
+    APut1(Sub, SP, SP, r*4); INC(frame, 8*r); (*was 4*)
+    REPEAT APut2(Str, r0, SP, (r-r0-1)*8); INC(r0) UNTIL r0 = r (*was 4*)
   END SaveRegs;
 
   PROCEDURE RestoreRegs(r: INTEGER); (*R[0 .. r-1]*)
     VAR r0: INTEGER;
   BEGIN (*r > 0*) r0 := r; 
-    REPEAT DEC(r0); APut2(Ldr, r0, SP, (r-r0-1)*4) UNTIL r0 = 0; (*was 4*)
-    APut1(Add, SP, SP, r*4); DEC(frame, 4*r) (*was 4*) 
+    REPEAT DEC(r0); APut2(Ldr, r0, SP, (r-r0-1)*8) UNTIL r0 = 0; (*was 4*)
+    APut1(Add, SP, SP, r*8); DEC(frame, 8*r) (*was 4*) 
   END RestoreRegs;
 
   PROCEDURE PrepCall*(VAR x: Item; VAR r: INTEGER);
@@ -1397,7 +1400,7 @@ v overflow
       END
     ELSE
       IF x.mode <= OAB.Par THEN load(x); DEC(RH)
-      ELSE APut2(Ldr, RH, SP, 0); APut1(Add, SP, SP, 4); DEC(r); DEC(frame, 4)
+      ELSE APut2(Ldr, RH, SP, 0); APut1(Add, SP, SP, 8); DEC(r); DEC(frame, 8)
       END ;
       IF check THEN Trap(EQ, 5) END ;
       APut3(BLR, 7, RH)
@@ -1527,7 +1530,7 @@ v overflow
 
   PROCEDURE LDREG*(VAR x, y: Item);
   BEGIN
-    IF y.mode = OAB.Const THEN APut1a(Mov, x.a, 0, y.a)
+    IF y.mode = OAB.Const THEN  movwi(x.a, y.a) 
     ELSE load(y); APut0(Mov, x.a, 0, y.r); DEC(RH)
     END
   END LDREG;
@@ -1543,16 +1546,16 @@ v overflow
 
   PROCEDURE EXIT*(VAR y: Item);
   BEGIN
-    IF y.mode = OAB.Const THEN APut1a(Mov, 0, 0, y.a)
+    IF y.mode = OAB.Const THEN  movwi(0, y.a) 
     ELSE load(y); APut0(Mov, 0, 0, y.r); DEC(RH)
     END;
-    APut1(Mov, 16, 0, 1);
+     movwi(16, 1);
     Put32(code, pc, 0D4001001H); INC(pc)
   END EXIT;
 
   PROCEDURE SYSCALL*(VAR y: Item);
   BEGIN
-    IF y.mode = OAB.Const THEN APut1a(Mov, 16, 0, y.a)
+    IF y.mode = OAB.Const THEN  movwi(16, y.a)
     ELSE load(y); APut0(Mov, 16, 0, y.r); DEC(RH)
     END;
     Put32(code, pc, 0D4001001H); INC(pc)

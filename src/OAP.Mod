@@ -875,7 +875,7 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     IF sym = OAS.ident THEN
       OAS.CopyId(procid); OAS.Get(sym);
       OAB.NewObj(proc, OAS.id, OAB.Const);
-      IF int THEN parblksize := 12 ELSE parblksize := 4 END ;
+      IF int THEN parblksize := 40 ELSE parblksize := 16 END ; (* was 12,4 *)
       NEW(type); type.form := OAB.Proc; type.size := OAG.WordSize;
       proc.type := type; proc.val := -1; proc.lev := level; 
       CheckExport(proc.expo);

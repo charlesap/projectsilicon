@@ -7,10 +7,10 @@ BEGIN
 END A;
 
 BEGIN
-  F.Q(5);
+  F.Q(5,6,7,8);
   G.Q(6);
   G.Y(7);
-  G.P(8);
+  G.P(8,9,10,11);
   A
 END H.
 

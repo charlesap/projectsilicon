@@ -3,7 +3,7 @@ IMPORT SYSTEM;
 
   VAR
     NL: INTEGER;
-    s: ARRAY 32 OF CHAR;
+    X: INTEGER;
 
   PROCEDURE Ln*;
   BEGIN
@@ -14,29 +14,45 @@ IMPORT SYSTEM;
   END Ln;
 
   PROCEDURE Char*(C: CHAR);
-  VAR c: INTEGER;
+  VAR i: INTEGER;
   BEGIN
-    c:=ORD(C);
-    SYSTEM.LDREG(1,SYSTEM.ADR(c));
+    X:=ORD(C);
+    SYSTEM.LDREG(1,SYSTEM.ADR(X));
     SYSTEM.LDREG(0,1);		    
-    SYSTEM.LDREG(2, 1);    	    
+    SYSTEM.LDREG(2,1);    	    
     SYSTEM.SYSCALL(4);              
 
   END Char;
 
   PROCEDURE String*(S: ARRAY OF CHAR);
+    VAR i,c,l: INTEGER;
   BEGIN
-(*
-    s[0]:=S[0];s[1]:=S[1];s[2]:=S[2];s[3]:=S[3];s[4]:=S[4];s[5]:=S[5];s[6]:=S[6];
+(*    l:=LEN(S); c:=0;
+    WHILE c < l DO 
+      i:=ORD(S[c]);
 *)
-    SYSTEM.LDREG(1,SYSTEM.ADR("Hello!")); 
-    SYSTEM.LDREG(0,1);		   
-    SYSTEM.LDREG(2, 6);       
-    SYSTEM.SYSCALL(4);             
+      SYSTEM.LDREG(1,SYSTEM.ADR(X)+1); 
+      SYSTEM.LDREG(0,1);		   
+      SYSTEM.LDREG(2,1);       
+      SYSTEM.SYSCALL(4);
+(*
+      INC(c)
+    END     
+*)        
   END String;
 
-  PROCEDURE Int*(i,c: INTEGER);
+  PROCEDURE Int*(I,C: INTEGER);
+    VAR T: INTEGER;
   BEGIN
+      T:=I;
+      WHILE T > 0 DO
+        X:=T MOD 10;
+        SYSTEM.LDREG(1,SYSTEM.ADR(X)); 
+        SYSTEM.LDREG(0,1);		   
+        SYSTEM.LDREG(2,1);       
+        SYSTEM.SYSCALL(4);
+        T:=T DIV 10;
+      END
   END Int;
 
   PROCEDURE Hex*(i: INTEGER);
@@ -49,7 +65,7 @@ IMPORT SYSTEM;
     e:=SYSTEM.ATE(0);
     f:=SYSTEM.ATB(0);
     g:=(e-(f+10000C000H))+12;
-    h:=100004080H + g;
+    h:=g + 100004080H;
     SYSTEM.LDREG(28,h);
     SYSTEM.GET(h,i);
     WHILE i > 0 DO
