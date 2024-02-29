@@ -4,6 +4,15 @@ IMPORT SYSTEM;
   VAR
     NL: INTEGER;
     X: INTEGER;
+    BUF: ARRAY 256 OF CHAR;
+
+  PROCEDURE bufout(c:INTEGER);
+  BEGIN
+    SYSTEM.LDREG(1,SYSTEM.ADR(BUF));   (* string to print *)
+    SYSTEM.LDREG(0,1);		     (* 1 = StdOut *)
+    SYSTEM.LDREG(2,c);    	     (* length of our string *)
+    SYSTEM.SYSCALL(4);               (* Unix write system call *)
+  END bufout;
 
   PROCEDURE Ln*;
   BEGIN
@@ -16,7 +25,7 @@ IMPORT SYSTEM;
   PROCEDURE Char*(C: CHAR);
   VAR i: INTEGER;
   BEGIN
-    X:=ORD(C);
+    SYSTEM.PUT(SYSTEM.ADR(X),C);
     SYSTEM.LDREG(1,SYSTEM.ADR(X));
     SYSTEM.LDREG(0,1);		    
     SYSTEM.LDREG(2,1);    	    
@@ -43,21 +52,41 @@ IMPORT SYSTEM;
 
   PROCEDURE Int*(I,C: INTEGER);
     VAR T: INTEGER;
+        Q: CHAR;
   BEGIN
       T:=I;
-      WHILE T > 0 DO
-        X:=T MOD 10;
+(*      WHILE T > 0 DO *) 
+        Q := CHR(48+(T MOD 10));
+        Char(Q);
+(*      
+        X := 48 + T MOD 10;
         SYSTEM.LDREG(1,SYSTEM.ADR(X)); 
         SYSTEM.LDREG(0,1);		   
         SYSTEM.LDREG(2,1);       
         SYSTEM.SYSCALL(4);
         T:=T DIV 10;
-      END
+      END *)
   END Int;
 
   PROCEDURE Hex*(i: INTEGER);
+    VAR T: INTEGER;
+        Q: CHAR;
   BEGIN
+      T:=i;
+        IF T < 10 THEN
+          Q := 49X
+        ELSE
+          Q := CHR(57+(T MOD 16))
+        END;
+        Char(Q);
   END Hex;
+
+  PROCEDURE Diagnostic*;
+  BEGIN
+    Char("H"); Char("e"); Char("l"); Char("l"); Char("o"); Char("!"); Char(0AX);
+(*   Int(24,1); *)
+    Hex(8);
+  END Diagnostic;
 
   PROCEDURE Init*;
     VAR e,f,g,h,i,j:INTEGER;

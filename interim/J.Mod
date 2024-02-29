@@ -1,4 +1,5 @@
 MODULE J;
+IMPORT Out;
 
 VAR d: INTEGER;
 
@@ -10,6 +11,7 @@ BEGIN
 END P;
 
 BEGIN
+ Out.Init;
  P(1,2)
 END J.
 

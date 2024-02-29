@@ -1,5 +1,5 @@
 MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
-  IMPORT SYSTEM, Out, Files, OAS, OAB, Macho;
+  IMPORT SYSTEM, Out, Files, OAS, OAB, Macho, Elf;
 
   CONST
     MT = 28;
@@ -35,6 +35,7 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
     MRoot, M: Module;
     importing*, imported*: ModuleName;
     bfo: BFOps;   
+    fext: ARRAY 16 OF CHAR;
     FLinkOne : PROCEDURE (mname: ARRAY OF CHAR; VAR newmod: Module;VAR ProgEntry: INTEGER): BOOLEAN;
 
   PROCEDURE Emit(s: ARRAY OF CHAR);
@@ -406,15 +407,21 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
   PROCEDURE SetFormat( format: INTEGER);
   BEGIN
-      IF format = OAB.BIN   THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL END;
-      IF format = OAB.RSC64 THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL END;
-      IF format = OAB.ELF64 THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL END;
+      IF format = OAB.BIN   THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL; fext:=".a64-bin" END;
+      IF format = OAB.RSC64 THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL; fext:=".a64-obn" END;
+      IF format = OAB.ELF64 THEN
+        bfo.Prepare := Elf.Prepare;
+        bfo.Write := Elf.Write;
+        bfo.Finish := Elf.Finish;
+        fext:=".a64-lin";
+      END;
       IF format = OAB.MACHO THEN
         bfo.Prepare := Macho.Prepare;
         bfo.Write := Macho.Write;
         bfo.Finish := Macho.Finish;
+        fext:=".a64-osx"
       END;
-      IF format = OAB.PE64  THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL END;
+      IF format = OAB.PE64  THEN bfo.Prepare:=NIL; bfo.Write:=NIL; bfo.Finish:=NIL; fext:=".a64-win" END;
   END SetFormat;
 
 
@@ -437,9 +444,9 @@ MODULE OAL;  (*Link and create binary on ARM64; CP 21.05.2014 2020-2021*)
 
     MTOrg := kOrg + 128; MTSpan := 0; MRoot := NIL;
     mname := "Modules";
-    OAB.MakeFileName(fname, name, ".bin");
-    F := Files.New(fname); 
     SetFormat( format );
+    OAB.MakeFileName(fname, name, fext);
+    F := Files.New(fname); 
     bfo.Prepare( F );
 
     Emit("   +  Loading          dAt      #imps    #td    q-p     cb               ce   #cmd  #entr  PRefs             Body  T        PHead ");

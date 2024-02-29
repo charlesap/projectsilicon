@@ -1087,10 +1087,10 @@ v overflow
         IF y.a > 0 THEN x.a := x.a DIV y.a ELSE OAS.Mark("bad divisor") END
       ELSIF (y.mode = OAB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); APut1(Asr, x.r, x.r, e)
       ELSIF y.mode = OAB.Const THEN
-        IF y.a > 0 THEN load(x); APut1a(Div, x.r, x.r, y.a) ELSE OAS.Mark("bad divisor") END
+        IF y.a > 0 THEN load(x); APut1a(Div, x.r, x.r, y.a)  ELSE OAS.Mark("bad divisor") END
       ELSE load(y);
         IF check THEN Trap(LE, 6) END ;
-        load(x); APut0(Div, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
+        load(x); (*APut0(Div, RH-2, x.r, y.r);*) dproc2( DP2SDIV, x.r, x.r, y.r);  DEC(RH); x.r := RH-1
       END
     ELSE (*op = OAS.mod*)
       IF (x.mode = OAB.Const) & (y.mode = OAB.Const) THEN
