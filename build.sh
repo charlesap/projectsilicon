@@ -26,31 +26,36 @@ echo "in interim"
 #../obnc/oac -s Files.Mod
 #../obnc/oac -s Modules.Mod
 
-../obnc/oac -ms E.Mod
+../obnc/oac -es E.Mod; chmod 755 E.a64-lin
+../obnc/oac -ms E.Mod; chmod 755 E.a64-osx
 codesign -s - E.a64-osx
 #objdump -l -j __k000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 E.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 E.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms F.Mod
+../obnc/oac -es F.Mod; chmod 755 F.a64-lin
+../obnc/oac -ms F.Mod; chmod 755 F.a64-osx
 codesign -s - F.a64-osx
 #objdump -l -j __k000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 F.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 F.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms G.Mod
+../obnc/oac -es G.Mod; chmod 755 G.a64-lin
+../obnc/oac -ms G.Mod; chmod 755 G.a64-osx
 codesign -s - G.a64-osx
 #objdump -l -j __k000 G.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 G.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 G.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms H.Mod
+../obnc/oac -es H.Mod; chmod 755 H.a64-lin
+../obnc/oac -ms H.Mod; chmod 755 H.a64-osx
 codesign -s - H.a64-osx
 #objdump -l -j __k000 H.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 H.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 H.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms I.Mod
+../obnc/oac -es I.Mod; chmod 755 I.a64-lin
+../obnc/oac -ms I.Mod; chmod 755 I.a64-osx
 codesign -s - I.a64-osx
 #objdump -l -j __k000 I.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 I.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
@@ -58,13 +63,15 @@ codesign -s - I.a64-osx
 
 ../obnc/oac -s Out.Mod
 
-../obnc/oac -ms J.Mod
+../obnc/oac -es J.Mod; chmod 755 J.a64-lin
+../obnc/oac -ms J.Mod; chmod 755 J.a64-osx
 codesign -s - J.a64-osx
 #objdump -l -j __k000 J.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -l -j __d000 J.bin | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
 #objdump -d -j __c000 J.bin | grep '\.\.\.\|^10'
 
-../obnc/oac -ms K.Mod
+../obnc/oac -es K.Mod; chmod 755 K.a64-lin
+../obnc/oac -ms K.Mod; chmod 755 K.a64-osx
 codesign -s - K.a64-osx
 #codesign -s - --entitlements tmp.entitlements K.bin
 objdump -l -j __k000 K.a64-osx | grep '\.\.\.\|^10' | awk '{print $1" "$2;}'
