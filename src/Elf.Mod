@@ -26,7 +26,7 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 0000000000000040H ); (* program header table offset *)
     WR( 0000000000004228H ); (* section header table offset was 4028H *)
     WR( 0038004000000000H ); (* flags this-header-size program-header-table-entry-size *)
-    WR( 0003000400400002H ); (* program-header-table-entry-count section-table-header-entry-size section-table-header-entry-count section-names-index *)
+    WR( 0003000400400004H ); (* program-header-table-entry-count section-table-header-entry-size section-table-header-entry-count section-names-index *)
 
     WR( 0000000500000001H ); (* loadable-segment executable+readable *)
     WR( 0000000000000000H ); (* segment file offset *)
@@ -42,6 +42,22 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 0000000100003FC0H ); (* physical address if relevent *)
     WR( 0000000000004000H ); (* size in file was EH *)
     WR( 0000000000004000H ); (* size in memory was EH *)
+    WR( 0000000000010000H ); (* alignment *)
+
+    WR( 0000000600000001H ); (* loadable-segment writeable+readable *)
+    WR( 0000000000008000H ); (* segment file offset *)
+    WR( 0000000100008000H ); (* virtual address *)
+    WR( 0000000100007FC0H ); (* physical address if relevent *)
+    WR( 0000000000004000H ); (* size in file was EH *)
+    WR( 0000000000004000H ); (* size in memory was EH *)
+    WR( 0000000000010000H ); (* alignment *)
+
+    WR( 0000000500000001H ); (* loadable-segment executable+readable *)
+    WR( 000000000000C000H ); (* segment file offset *)
+    WR( 000000010000C000H ); (* virtual address *)
+    WR( 0000000100000000H ); (* physical address if relevent *)
+    WR( 0000000000004000H ); (* size in file *)
+    WR( 0000000000004000H ); (* size in memory *)
     WR( 0000000000010000H ); (* alignment *)
 
   END Header;
@@ -155,7 +171,7 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
 
     Header( 380H + ((13H * 8)*2)*N, 19+((N-1)*2) ); (* 1200 or 4B0H *) 
 
-    i:= 0B0H; WHILE i < 3F90H DO WR( 0 ); INC(i,8) END;
+    i:= 0B0H + 70H; WHILE i < 3F90H DO WR( 0 ); INC(i,8) END;
 
     WR( 580000E1D2800020H );
     WR( 5280080858000102H );
@@ -218,6 +234,7 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 0000000000000000H ); (* size *)
 
     i:= 0; WHILE i < (4000H - (28H + 200H + (40H * 4))) DO WR( 0 ); INC(i,8); END;
+    i:= 0; WHILE i < 8000H DO WR( 0 ); INC(i,8); END;
 
 (*
     i:= 6210H; WHILE i < 8000H DO WR( 0 ); INC(i,8); END;
