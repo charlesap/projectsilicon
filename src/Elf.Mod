@@ -22,7 +22,7 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 00010102464C457FH ); (* elf 64-bit little-endian elf-1 sys-v *)
     WR( 0000000000000000H ); (* abi + pad *)
     WR( 0000000100B70002H ); (* executable aarch64 elf-1 *)
-    WR( 0000000100003F90H ); (* entrypoint *)
+    WR( 0000000100003F9CH ); (* entrypoint *)
     WR( 0000000000000040H ); (* program header table offset *)
     WR( 0000000000004228H ); (* section header table offset was 4028H *)
     WR( 0038004000000000H ); (* flags this-header-size program-header-table-entry-size *)
@@ -76,49 +76,17 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
   BEGIN
   END Section;
 
-  PROCEDURE Mysterious(ignorable: BOOLEAN; id, p1, p2: INTEGER);
-  BEGIN
-  END Mysterious;
-
-  PROCEDURE Symbols(nSYM, symfo, strtabsz, strtabfo: INTEGER);
-  BEGIN
-  END Symbols;
-
-  PROCEDURE SymbolTableInfo(nLSym, LSymI, nESym, ESymI, nUSym, USymI: INTEGER);
-  BEGIN
-  END SymbolTableInfo;
-
-  PROCEDURE LoadDylinker();
-  BEGIN
-  END LoadDylinker;
-
-  PROCEDURE ApplicationUUID(UUIDhi, UUIDlo: INTEGER);
-  BEGIN
-  END ApplicationUUID;
-
-  PROCEDURE MinimumOS();
-  BEGIN
-  END MinimumOS;
-
   PROCEDURE MainEntry(address, stack: INTEGER);
   BEGIN
   END MainEntry;
-
-  PROCEDURE LinkLibSystem();
-  BEGIN
-  END LinkLibSystem;
-
-  PROCEDURE CodeSignature(p1, p2: INTEGER);
-  BEGIN
-  END CodeSignature;
 
 
   PROCEDURE ExitCode(ProgEntry: INTEGER);
   BEGIN
     WR( 0000000100004080H ); (*MT location*)
     WR( 58FFFFBC44444444H ); (* load MT location into MT register *)
-    WR(0D280003094002018H + (ProgEntry DIV 4)); (*  D2800540H *)
-    WR( 00000001D4001001H );
+    WR( 52800BA894002018H + (ProgEntry DIV 4)); (*  D2800540H *)
+    WR( 00000001D4000001H );
     WR( 000000000000001CH );
     WR( 000000000000001CH );
     WR( 000000020000001CH );
@@ -131,12 +99,12 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 0000000000000000H );
   END ExitCode;
 
-
+  
   PROCEDURE Prepare*(F: Files.File);
     VAR i: INTEGER;
   BEGIN
     Files.Set( R, F, 0 );
-(*    i := 0; WHILE i < 8000H DO WR( 0 ); INC(i,8); END *)
+    i := 0; WHILE i < 8000H DO WR( 0 ); INC(i,8); END 
   END Prepare;
 
 
@@ -144,16 +112,12 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     VAR i,p,v,lim: INTEGER;
   BEGIN                                                 
     (* module data at 8000H *)
-(*
     p := SYSTEM.VAL(INTEGER, C) + SYSTEM.SIZE(OAB.MbinDesc) - 4000H;
     i := 0; 
     WHILE i <  4000H DO SYSTEM.GET(p,v); WR( v ); INC(p,8); INC(i,8); END;
     p:=SYSTEM.VAL(INTEGER,C);
-*)
     (* module code *)                                                        
-(*
     WHILE i <  8000H DO SYSTEM.GET(p,v); WR( v ); INC(p,8); INC(i,8); END;
-*)
   END Write;
 
   PROCEDURE Bump(VAR c: CHAR);
@@ -175,29 +139,15 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
 
     ExitCode( ProgEntry );
 
-(*
-    WR( 580000E1D2800020H );
-    WR( 5280080858000102H );
-    WR(0D2800000D4000001H );
-    WR(0D400000152800BA8H );
-    WR( 0000000100004000H );
-    WR( 000000000000000EH );
-    WR( 0000000000000000H );
-    WR( 0000000000000000H );
-    WR( 0000000000000000H );
-    WR( 0000000000000000H );
-    WR( 0000000000000000H );
-    WR( 0000000000000000H );
-    WR( 0000000000000000H );
-    WR( 0000000000000000H );
-*)
     WR( 41202C6F6C6C6548H );
     WR( 2E000A2134364D52H );
     WR( 6261747274736873H );
     WR( 2E00747865742E00H );
-    WR( 0000000061746164H );
+    WR( 306B2E0061746164H );
+    WR( 303030642E003030H );
+    WR( 0000303030632E00H );
 
-    i:= 0; WHILE i < 200H DO WR( 0 ); INC(i,8); END;
+    i:= 0; WHILE i < 1F0H DO WR( 0 ); INC(i,8); END;
 
           (* null *)
     WR( 0000000000000000H ); (* string-table-offset-of-section-name header-type *)
@@ -208,7 +158,7 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 0000000000000000H ); (* section-index section-info *)
     WR( 0000000000000000H ); (* alignment *)
     WR( 0000000000000000H ); (* size *)
-          (* program data, ALLOC + EXEC *)
+          (* .text program data, ALLOC + EXEC *)
     WR( 000000010000000BH ); (* string-table-offset-of-section-name header-type *)
     WR( 0000000000000006H ); (* header-flags *)
     WR( 0000000100003F90H ); (* virtual address *)
@@ -217,8 +167,8 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 0000000000000000H ); (* section-index section-info *)
     WR( 0000000000000008H ); (* alignment *)
     WR( 0000000000000000H ); (* size *)
-          (* program data, ALLOC + WRITE *)
-    WR( 0000000100000011H ); (* string-table-offset-of-section-name header-type *)
+          (* .k000 program data, ALLOC + WRITE *)
+    WR( 0000000100000017H ); (* string-table-offset-of-section-name header-type *)
     WR( 0000000000000003H ); (* header-flags *)
     WR( 0000000100004000H ); (* virtual address *)
     WR( 0000000000004000H ); (* offset in file image *)
@@ -226,8 +176,8 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 0000000000000000H ); (* section-index section-info *)
     WR( 0000000000000001H ); (* alignment *)
     WR( 0000000000000000H ); (* size *)
-          (* program data, ALLOC + WRITE *)
-    WR( 0000000100000011H ); (* string-table-offset-of-section-name header-type *)
+          (* .d000 program data, ALLOC + WRITE *)
+    WR( 000000010000001DH ); (* string-table-offset-of-section-name header-type *)
     WR( 0000000000000003H ); (* header-flags *)
     WR( 0000000100008000H ); (* virtual address *)
     WR( 0000000000008000H ); (* offset in file image *)
@@ -236,7 +186,7 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 0000000000000001H ); (* alignment *)
     WR( 0000000000000000H ); (* size *)
           (* program data, ALLOC + EXEC *)
-    WR( 000000010000000BH ); (* string-table-offset-of-section-name header-type *)
+    WR( 0000000100000023H ); (* string-table-offset-of-section-name header-type *)
     WR( 0000000000000006H ); (* header-flags *)
     WR( 000000010000C000H ); (* virtual address *)
     WR( 000000000000C000H ); (* offset in file image *)
@@ -249,14 +199,14 @@ MODULE Elf;  (*Write an ELF file cp 2024*)
     WR( 0000000000000000H ); (* header-flags *)
     WR( 0000000000000000H ); (* virtual address *)
     WR( 000000000000400EH ); (* offset in file image *)
-    WR( 0000000000000017H ); (* size *)
+    WR( 0000000000000029H ); (* size *)
     WR( 0000000000000000H ); (* section-index section-info *)
     WR( 0000000000000001H ); (* alignment *)
     WR( 0000000000000000H ); (* size *)
-
+(*
     i:= 0; WHILE i < (4000H - (28H + 200H + (40H * 6))) DO WR( 0 ); INC(i,8); END;
     i:= 0; WHILE i < 8000H DO WR( 0 ); INC(i,8); END;
-
+*)
 (*
     i:= 6210H; WHILE i < 8000H DO WR( 0 ); INC(i,8); END;
 *)
