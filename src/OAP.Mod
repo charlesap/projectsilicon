@@ -19,7 +19,8 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     newSF: BOOLEAN;  (*option flag*)
     verbose: BOOLEAN;  (*option flag*)
     incRuntime: BOOLEAN;  (*option flag*)
-    ccFMT, ccWordsize, ccStackalign: INTEGER;
+    osVariant: BOOLEAN;  (*option flag*)
+    ccFMT, ccWordsize, ccStackalign, ccOS: INTEGER;
     expression: PROCEDURE (VAR x: OAG.Item);  (*to avoid forward reference*)
     Type: PROCEDURE (VAR type: OAB.Type);
     FormalType: PROCEDURE (VAR typ: OAB.Type; dim: INTEGER);
@@ -986,19 +987,22 @@ MODULE OAP; (*N. Wirth 1.7.97 / 8.3.2020, CP 2023 Oberon compiler for Arm 64-bit
     newSF := FALSE;
     verbose := FALSE;
     incRuntime := FALSE;
+    osVariant := FALSE;
     ccFMT := 0; (* no linking *)
     ccWordsize := 4;
     ccStackalign := 4;
+    ccOS := OAB.Oberon;
 
     i:=0; WHILE o[i] > 0X DO 
       IF o[i] = "s" THEN newSF := TRUE END;
       IF o[i] = "v" THEN verbose := TRUE END;
-      IF o[i] = "o" THEN incRuntime := TRUE END;
-      IF o[i] = "b" THEN ccFMT :=  OAB.BIN     END;  (* raw binary *)
-      IF o[i] = "r" THEN ccFMT :=  OAB.RSC64   END;  (* rsc64  *)
-      IF o[i] = "e" THEN ccFMT :=  OAB.ELF64   END;  (* elf64  *)
-      IF o[i] = "m" THEN ccFMT :=  OAB.MACHO   END;  (* macho  *)
-      IF o[i] = "p" THEN ccFMT :=  OAB.PE64    END;  (* pe64   *)
+      IF o[i] = "t" THEN incRuntime := TRUE END;
+      IF o[i] = "o" THEN osVariant := TRUE END;
+      IF o[i] = "b" THEN ccFMT :=  OAB.BIN; ccOS := OAB.None     END;  (* raw binary *)
+      IF o[i] = "r" THEN ccFMT :=  OAB.RSC64; ccOS := OAB.Oberon END;  (* rsc64 on Oberon *)
+      IF o[i] = "e" THEN ccFMT :=  OAB.ELF64; ccOS := OAB.Linux  END;  (* elf64 on Linux  *)
+      IF o[i] = "m" THEN ccFMT :=  OAB.MACHO; ccOS:= OAB.OSX     END;  (* macho on OSX    *)
+      IF o[i] = "p" THEN ccFMT :=  OAB.PE64; ccOS:= OAB.Windows  END;  (* pe64 on Windows *)
       INC(i)
     END
   END Option;
